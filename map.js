@@ -28,9 +28,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     map.addControl(new maplibregl.FullscreenControl());
 
+    map.addControl(new maplibregl.GeolocateControl({
+        positionOptions: { enableHighAccuracy: true },
+        trackUserLocation: true,
+        fitBoundsOptions: { maxZoom: 15 },
+    }));
 
+    // Close sidebar on mobile when clicking the map
+    map.on('click', () => {
+        document.querySelector('.sidebar').classList.remove('open');
+    });
 
-    map.on('load', async () => {    
+    map.on('load', async () => {
         // Find the index of the first symbol layer and road layer in the map style
         const layers = map.getStyle().layers;
         let firstSymbolId;
@@ -241,7 +250,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // PDX Reporter data from webhookdb
         // Raw json format must be reshaped into GeoJSON for proper use as a map source
         const pdxReporterData = await fetch('https://api.webhookdb.com/v1/saved_queries/svq_23en3z2idq56ktlc2ivb4x6ri/run').then(r => r.json());
-        pdxReporterGeoData = {"type": "FeatureCollection", "features": []};
+        let pdxReporterGeoData = {"type": "FeatureCollection", "features": []};
         pdxReporterData.rows.forEach(r => {
             const {geo_lat, geo_lng, ...properties} = pdxReporterData.headers.reduce((acc, cur, ix) => {
                 acc[cur] = r[ix];
