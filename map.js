@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Add image sources for custom map icons
 
         // Traffic signal icon
-        const signalImg = 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2c/Twemoji2_1f6a6.svg/64px-Twemoji2_1f6a6.svg.png';
+        const signalImg = 'icons/traffic-signal.png';
         await map.loadImage(signalImg).then(img => {
             const scale = Math.max(img.data.width, img.data.height) / 24;
             map.addImage('traffic-signal-img', img.data, {pixelRatio: scale});
@@ -62,7 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         // Stop sign icon
-        const stopSignImg = 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Stop_sign%28standard%29.svg/64px-Stop_sign%28standard%29.svg.png?20250111013546';
+        const stopSignImg = 'icons/stop-sign.png';
         await map.loadImage(stopSignImg).then(img => {
             const scale = Math.max(img.data.width, img.data.height) / 16;
             map.addImage('stop-sign-img', img.data, {pixelRatio: scale});
@@ -71,7 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         // Bike route sign icon
-        const bikeSignImg = 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a1/Dv11.png/64px-Dv11.png?20150105204918';
+        const bikeSignImg = 'icons/bike-route-sign.png';
         await map.loadImage(bikeSignImg).then(img => {
             const scale = Math.max(img.data.width, img.data.height) / 16;
             map.addImage('bike-route-img', img.data, {pixelRatio: scale});
