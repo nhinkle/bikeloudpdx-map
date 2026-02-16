@@ -1,0 +1,221 @@
+[
+    {
+        "id": 55,
+        "source": {
+            "type": "mapLayer",
+            "mapLayerId": 55
+        },
+        "drawingInfo": {
+            "renderer": {
+                "type": "simple",
+                "symbol": {
+                    "type": "esriSLS",
+                    "color": [
+                        223,
+                        115,
+                        255,
+                        255
+                    ],
+                    "width": 3.75,
+                    "style": "esriSLSShortDot"
+                }
+            }
+        }
+    },
+    {
+        "id": 56,
+        "source": {
+            "type": "mapLayer",
+            "mapLayerId": 56
+        },
+        "drawingInfo": {
+            "renderer": {
+                "type": "uniqueValue",
+                "field1": "SpeedLimit",
+                "fieldDelimiter": ",",
+                "uniqueValueInfos": [
+                    {
+                        "label": "50+ mph",
+                        "symbol": {
+                            "type": "esriSLS",
+                            "color": [
+                                117,
+                                63,
+                                15,
+                                255
+                            ],
+                            "width": 1.5,
+                            "style": "esriSLSSolid"
+                        },
+                        "value": "50"
+                    },
+                    {
+                        "label": "50+ mph",
+                        "symbol": {
+                            "type": "esriSLS",
+                            "color": [
+                                117,
+                                63,
+                                15,
+                                255
+                            ],
+                            "width": 1.5,
+                            "style": "esriSLSSolid"
+                        },
+                        "value": "65"
+                    },
+                    {
+                        "label": "50+ mph",
+                        "symbol": {
+                            "type": "esriSLS",
+                            "color": [
+                                117,
+                                63,
+                                15,
+                                255
+                            ],
+                            "width": 1.5,
+                            "style": "esriSLSSolid"
+                        },
+                        "value": "60"
+                    },
+                    {
+                        "label": "50+ mph",
+                        "symbol": {
+                            "type": "esriSLS",
+                            "color": [
+                                117,
+                                63,
+                                15,
+                                255
+                            ],
+                            "width": 1.5,
+                            "style": "esriSLSSolid"
+                        },
+                        "value": "70"
+                    },
+                    {
+                        "label": "50+ mph",
+                        "symbol": {
+                            "type": "esriSLS",
+                            "color": [
+                                117,
+                                63,
+                                15,
+                                255
+                            ],
+                            "width": 1.5,
+                            "style": "esriSLSSolid"
+                        },
+                        "value": "55"
+                    },
+                    {
+                        "label": "45 mph",
+                        "symbol": {
+                            "type": "esriSLS",
+                            "color": [
+                                230,
+                                76,
+                                0,
+                                255
+                            ],
+                            "width": 1.5,
+                            "style": "esriSLSSolid"
+                        },
+                        "value": "45"
+                    },
+                    {
+                        "label": "40 mph",
+                        "symbol": {
+                            "type": "esriSLS",
+                            "color": [
+                                255,
+                                145,
+                                0,
+                                255
+                            ],
+                            "width": 1.5,
+                            "style": "esriSLSSolid"
+                        },
+                        "value": "40"
+                    },
+                    {
+                        "label": "35 mph",
+                        "symbol": {
+                            "type": "esriSLS",
+                            "color": [
+                                255,
+                                204,
+                                0,
+                                255
+                            ],
+                            "width": 1.5,
+                            "style": "esriSLSSolid"
+                        },
+                        "value": "35"
+                    },
+                    {
+                        "label": "30 mph",
+                        "symbol": {
+                            "type": "esriSLS",
+                            "color": [
+                                20,
+                                91,
+                                255,
+                                255
+                            ],
+                            "width": 1.5,
+                            "style": "esriSLSSolid"
+                        },
+                        "value": "30"
+                    },
+                    {
+                        "label": "25 mph",
+                        "symbol": {
+                            "type": "esriSLS",
+                            "color": [
+                                0,
+                                162,
+                                255,
+                                255
+                            ],
+                            "width": 1.5,
+                            "style": "esriSLSSolid"
+                        },
+                        "value": "25"
+                    },
+                    {
+                        "label": "20 mph",
+                        "symbol": {
+                            "type": "esriSLS",
+                            "color": [
+                                0,
+                                219,
+                                26,
+                                255
+                            ],
+                            "width": 1.5,
+                            "style": "esriSLSSolid"
+                        },
+                        "value": "20"
+                    },
+                    {
+                        "label": "15 mph",
+                        "symbol": {
+                            "type": "esriSLS",
+                            "color": [
+                                255,
+                                190,
+                                232,
+                                255
+                            ],
+                            "width": 1.5,
+                            "style": "esriSLSSolid"
+                        },
+                        "value": "15"
+                    }
+                ]
+            }
+        }
+    }
+]

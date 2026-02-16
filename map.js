@@ -181,6 +181,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 attribution: pbotAttrib,
             }
         );
+
+        // PBOT speed limits service
+        const speedLimitService = new esrigl.DynamicMapService(
+            'pbot-speed-limits', 
+            map, 
+            {
+                url: 'https://www.portlandmaps.com/arcgis/rest/services/Public/Transportation/MapServer',
+                layers: [55,56],
+            },
+            {
+                ...srcBoundOptions,
+                attribution: pbotAttrib,
+            }
+        );
         
         // PBOT traffic signals
         const signalsMinZoom = 14;
@@ -272,6 +286,7 @@ document.addEventListener('DOMContentLoaded', () => {
             id: pavementLayer,
             type: 'raster',
             source: 'pbot-markings',
+            layout: {visibility: 'none'},
             minzoom: 17,
         }, firstSymbolId);
 
@@ -286,6 +301,13 @@ document.addEventListener('DOMContentLoaded', () => {
             },
         }, firstSymbolId);
 
+        const speedLimitLayer = 'pbot-speed-limit-layer';
+        map.addLayer({
+            id: speedLimitLayer,
+            type: 'raster',
+            source: 'pbot-speed-limits',
+            layout: {visibility: 'none'},
+        }, firstSymbolId);
 
         const crashLayer = 'pbot-high-crash-network';
         map.addLayer({
@@ -303,6 +325,7 @@ document.addEventListener('DOMContentLoaded', () => {
             id: pdxOrthoLayer, 
             type: 'raster', 
             source: 'pdx-orthos-src',
+            layout: {visibility: 'none'},
         // }, firstRoadId);
         }, routesLayer);
 
@@ -311,6 +334,7 @@ document.addEventListener('DOMContentLoaded', () => {
             id: esriImgLayer,
             type: 'raster',
             source: 'esri-imagery-src',
+            layout: {visibility: 'none'},
         // }, firstRoadId);
         }, routesLayer);
 
@@ -319,7 +343,8 @@ document.addEventListener('DOMContentLoaded', () => {
             id: rwgpsLayer, 
             type: 'raster', 
             source: 'rwgps-heatmap-src', 
-            paint: {'raster-opacity': 0.8}
+            paint: {'raster-opacity': 0.8},
+            layout: {visibility: 'none'},
         }, firstSymbolId);
         
         const pdxReporterLayer = 'pdx-reporter-points';
@@ -327,6 +352,7 @@ document.addEventListener('DOMContentLoaded', () => {
             id: pdxReporterLayer, 
             type: 'circle', 
             source: 'pdx-reporter-src',
+            layout: {visibility: 'none'},
             paint: {
                 "circle-color": [
                     "match",
@@ -579,6 +605,34 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
         });
+
+        // Update speed limit layer styling before generating legend
+        const speedLimitDynamicLayers = await fetch('data/speed-limit-dynamic-layers.json').then(r => r.json());
+        speedLimitService.setDynamicLayers(speedLimitDynamicLayers);
+
+        // Legend for speed limits layer must be generated from the feature server,
+        // as the layer is rendered fully server-side
+        const slLayerConfig = {
+            id: speedLimitLayer,
+            visible: false,
+            title: 'PBOT Speed Limits',
+            showCheckbox: true,
+            icons: [],
+        };
+        const slLegend = await speedLimitService.generateLegend();
+        const slLegendLayers = [55,56];
+        slLegend.forEach((layer) => {
+            if (slLegendLayers.includes(layer.layerId)) {
+                layer.legend.forEach((l) => {
+                    slLayerConfig.icons.push({
+                        label: l.label || layer.layerName,
+                        element: 'img',
+                        content: `data:${l.contentType};base64,${l.imageData}`,
+                    });
+                });
+            }
+        });
+
         
 
         // Legend config is built manually to control labels and styling for clarity
@@ -676,6 +730,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 showCheckbox: true,
                 icons: [],
             },
+            slLayerConfig,
             {
                 id: rwgpsLayer,
                 visible: false,
@@ -700,6 +755,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Fetching and applying the dynamic layers takes a moment, so we do this last
         const markingsDynamicLayers = await fetch('data/pbot-assets-dynamic-layers.json').then(r => r.json());
         markingsService.setDynamicLayers(markingsDynamicLayers);
+
     });
 });
 
