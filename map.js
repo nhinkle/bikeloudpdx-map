@@ -26,6 +26,8 @@ document.addEventListener('DOMContentLoaded', () => {
         showCompass: true
     }));
 
+    map.addControl(new maplibregl.FullscreenControl());
+
 
 
     map.on('load', async () => {    

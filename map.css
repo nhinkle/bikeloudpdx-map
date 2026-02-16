@@ -27,6 +27,11 @@ body {
     right: calc(clamp(250px, 25vw, 500px));
 }
 
+#map:fullscreen .maplibregl-ctrl-top-right, 
+#map:fullscreen .maplibregl-ctrl-bottom-right {
+    right: 0;
+}
+
 .sidebar {
     position: absolute;
     right: 0;
