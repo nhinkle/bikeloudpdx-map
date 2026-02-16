@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>BikeLoudPDX Map</title>
+    <link rel="icon" href="https://bikeloudpdx.org/favicon.ico" type="image/png">
+    <meta name="viewport" content="width=device-width,interactive-widget=overlays-content,user-scalable=no" />
+
+    <script src="https://unpkg.com/maplibre-gl@^5.13.0/dist/maplibre-gl.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@^5.13.0/dist/maplibre-gl.css" rel="stylesheet" />
+    
+    <!-- using a modified version of esri-gl to fix some issues pending PR -->
+    <!-- <script src="https://unpkg.com/esri-gl/dist/esri-gl.js"></script> -->
+    <script src="esri-gl/esri-gl.min.js"></script>
+    
+    <link href="map.css" rel="stylesheet">
+    <script src="map.js"></script>
+</head>
+
+<body>
+    <div class="sidebar">
+        <header class="info">
+            <h1>BikeLoudPDX Map</h1>
+            <p>
+                This map provides useful reference data for route planning, community engagement, advocacy, and 
+                other biking and active transportation activities in Portland, OR. 
+            </p>
+            <p>
+                Map data is provided by <a href="https://openstreetmap.org">OpenStreetMap</a>, 
+                <a href="https://www.portland.gov/transportation/data">PBOT</a>, 
+                <a href="https://portlandmaps.com/">PortlandMaps</a>, and various other sources.
+                All data displayed on this map is pulled in dynamically, and will update automatically 
+                here when changes are made to the original sources.
+            </p>
+        </header>
+        <div class="legend">
+            <ul class="legend_main_layers"></ul>
+        </div>
+        <footer class="info">
+            <p>
+            This map was created by <a href="https://nathanhinkle.com/">Nathan Hinkle</a> for <a href="https://bikeloudpdx.org/">BikeLoudPDX</a>.
+            View source on GitHub. Pull requests are welcome!
+            </p>
+            <p class="disclaimer">
+                This map is provided for general informational purposes only. 
+                No guarantee is made regarding the accuracy, completeness, or currentness of the data. 
+                The creators and providers disclaim all liability for any errors, omissions, or outcomes resulting from its use.
+            </p>
+        </footer>
+
+    </div>
+    <div id="map"></div>
+</body>
+
+</html>

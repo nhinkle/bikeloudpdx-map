@@ -1,0 +1,245 @@
+[
+    {
+        "id": 118,
+        "source": {
+            "type": "mapLayer",
+            "mapLayerId": 118
+        },
+        "drawingInfo": {
+            "showLabels": false,
+            "transparency": 0
+        }
+    },
+    {
+        "id": 119,
+        "source": {
+            "type": "mapLayer",
+            "mapLayerId": 119
+        },
+        "drawingInfo": {
+            "showLabels": false,
+            "transparency": 0
+        }
+    },
+    {
+        "id": 124,
+        "source": {
+            "type": "mapLayer",
+            "mapLayerId": 124
+        },
+        "drawingInfo": {
+            "showLabels": false,
+            "transparency": 0
+        }
+    },
+    {
+        "id": 125,
+        "source": {
+            "type": "mapLayer",
+            "mapLayerId": 125
+        },
+        "drawingInfo": {
+            "showLabels": false,
+            "transparency": 0
+        }
+    },
+    {
+        "id": 126,
+        "source": {
+            "type": "mapLayer",
+            "mapLayerId": 126
+        },
+        "drawingInfo": {
+            "showLabels": false,
+            "transparency": 0
+        }
+    },
+    {
+        "id": 127,
+        "source": {
+            "type": "mapLayer",
+            "mapLayerId": 127
+        },
+        "drawingInfo": {
+            "showLabels": false,
+            "transparency": 0
+        }
+    },
+    {
+        "id": 128,
+        "source": {
+            "type": "mapLayer",
+            "mapLayerId": 128
+        },
+        "drawingInfo": {
+            "showLabels": false,
+            "transparency": 0
+        }
+    },
+    {
+        "id": 129,
+        "source": {
+            "type": "mapLayer",
+            "mapLayerId": 129
+        },
+        "drawingInfo": {
+            "showLabels": false,
+            "transparency": 0
+        }
+    },
+    {
+        "id": 136,
+        "source": {
+            "type": "mapLayer",
+            "mapLayerId": 136
+        },
+        "drawingInfo": {
+            "renderer": {
+                "type": "uniqueValue",
+                "field1": "CurbType",
+                "fieldDelimiter": ",",
+                "uniqueValueGroups": [
+                    {
+                        "classes": [
+                            {
+                                "label": "Curb",
+                                "symbol": {
+                                    "type": "esriSLS",
+                                    "color": [
+                                        133,
+                                        133,
+                                        133,
+                                        255
+                                    ],
+                                    "width": 3,
+                                    "style": "esriSLSSolid"
+                                },
+                                "values": [
+                                    [
+                                        "3110"
+                                    ]
+                                ]
+                            },
+                            {
+                                "label": "Corner/Island Curb",
+                                "symbol": {
+                                    "type": "esriSLS",
+                                    "color": [
+                                        163,
+                                        163,
+                                        163,
+                                        255
+                                    ],
+                                    "width": 3,
+                                    "style": "esriSLSSolid"
+                                },
+                                "values": [
+                                    [
+                                        "3120", "3130"
+                                    ]
+                                ]
+                            },
+                            {
+                                "label": "Shoulder",
+                                "symbol": {
+                                    "type": "esriSLS",
+                                    "color": [
+                                        158,
+                                        158,
+                                        158,
+                                        255
+                                    ],
+                                    "width": 0.998,
+                                    "style": "esriSLSDash"
+                                },
+                                "values": [
+                                    [
+                                        "3140"
+                                    ]
+                                ]
+                            },
+                            {
+                                "label": "Parking Block",
+                                "symbol": {
+                                    "type": "esriSLS",
+                                    "color": [
+                                        89,
+                                        89,
+                                        89,
+                                        255
+                                    ],
+                                    "width": 2.002,
+                                    "style": "esriSLSSolid"
+                                },
+                                "values": [
+                                    [
+                                        "3150"
+                                    ]
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            },
+            "showLabels": false,
+            "transparency": 0
+        }
+    },
+    {
+        "id": 143,
+        "source": {
+            "type": "mapLayer",
+            "mapLayerId": 143
+        },
+        "drawingInfo": {
+            "renderer": {
+                "type": "simple",
+                "symbol": {
+                    "type": "esriSFS",
+                    "color": [
+                        230,
+                        230,
+                        230,
+                        255
+                    ],
+                    "outline": {
+                        "type": "esriSLS",
+                        "color": [
+                            0,
+                            0,
+                            0,
+                            0
+                        ],
+                        "width": 0.998,
+                        "style": "esriSLSSolid"
+                    },
+                    "style": "esriSFSSolid"
+                }
+            },
+            "showLabels": false,
+            "transparency": 50
+        }
+    },
+    {
+        "id": 144,
+        "source": {
+            "type": "mapLayer",
+            "mapLayerId": 144
+        },
+        "drawingInfo": {
+            "showLabels": false,
+            "transparency": 30
+        }
+    },
+    {
+        "id": 145,
+        "source": {
+            "type": "mapLayer",
+            "mapLayerId": 145
+        },
+        "drawingInfo": {
+            "showLabels": false,
+            "transparency": 0
+        }
+    }
+]
