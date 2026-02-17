@@ -179,6 +179,11 @@ body {
     margin-bottom: 3px;
 }
 
+.mode-draw_polygon .maplibregl-canvas-container,
+.mode-draw_line_string .maplibregl-canvas-container {
+    cursor: crosshair;
+}
+
 @media screen and (max-width: 700px) {
 
     .sidebar {

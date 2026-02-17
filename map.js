@@ -26,8 +26,14 @@ document.addEventListener('DOMContentLoaded', () => {
         showCompass: true
     }));
 
-    map.addControl(new maplibregl.FullscreenControl());
-
+    map.addControl(new maplibregl.FullscreenControl(), 'top-right');
+    map.addControl(new maplibreGLMeasures.default({
+        units: 'imperial',
+        fixedAreaUnit: 'ft2',
+        fixedLengthUnit: 'ft',
+        showOnlyTotalLineLength: true,
+        style: {text: {font: 'Noto Sans Bold'}},
+    }), 'top-left');
 
 
     map.on('load', async () => {    
