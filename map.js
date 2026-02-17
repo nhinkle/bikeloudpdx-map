@@ -257,17 +257,23 @@ document.addEventListener('DOMContentLoaded', () => {
         const pdxReporterData = await fetch('https://api.webhookdb.com/v1/saved_queries/svq_23en3z2idq56ktlc2ivb4x6ri/run').then(r => r.json());
         pdxReporterGeoData = {"type": "FeatureCollection", "features": []};
         pdxReporterData.rows.forEach(r => {
-            const {geo_lat, geo_lng, ...properties} = pdxReporterData.headers.reduce((acc, cur, ix) => {
+            const {entry_id, geo_lat, geo_lng, ...properties} = pdxReporterData.headers.reduce((acc, cur, ix) => {
                 acc[cur] = r[ix];
                 return acc;
             }, {});
-            
+
             const geometry = {
                 "coordinates": [parseFloat(geo_lng), parseFloat(geo_lat)],
                 "type": "Point"
             };
 
-            const rowData = {geometry, properties, "type": "Feature"};
+            const rowData = {
+                id: entry_id,
+                "type": "Feature", 
+                geometry, 
+                properties, 
+            };
+
             pdxReporterGeoData.features.push(rowData);
         });
         
@@ -347,12 +353,17 @@ document.addEventListener('DOMContentLoaded', () => {
             layout: {visibility: 'none'},
         }, firstSymbolId);
         
-        const pdxReporterLayer = 'pdx-reporter-points';
-        map.addLayer({
-            id: pdxReporterLayer, 
+        const pdxReporterLayerBaseConfig = {
             type: 'circle', 
             source: 'pdx-reporter-src',
             layout: {visibility: 'none'},
+            minzoom: 12,
+        };
+
+        const pdxReporterLayer = 'pdx-reporter-points';
+        map.addLayer({
+            ...pdxReporterLayerBaseConfig,
+            id: pdxReporterLayer, 
             paint: {
                 "circle-color": [
                     "match",
@@ -371,7 +382,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
                 "circle-stroke-width": 0.1
             },
-            minzoom: 12,
+        });
+
+        // Invisible layer used to detect hover events with larger target
+        const pdxReporterHoverLayer = 'pdx-reporter-hover';
+        map.addLayer({
+            ...pdxReporterLayerBaseConfig,
+            id: pdxReporterHoverLayer, 
+            paint: {
+                "circle-opacity": 0,
+                "circle-stroke-width": 0,
+                // "circle-stroke-width": 0.1,
+                // "circle-stroke-color": "#000000",
+                "circle-radius": 20,
+            },
         });
 
         const signalsLayer = 'pbot-signals-layer';
@@ -440,9 +464,9 @@ document.addEventListener('DOMContentLoaded', () => {
         ////////////////////////////////////////////
 
         // On-hover pop-ups of PDX Reporter issues
-        const pdxReporterPopup = new maplibregl.Popup({closeButton: false, closeOnClick: false, className: 'pdx_reporter_popup'});
+        const pdxReporterPopup = new maplibregl.Popup({closeButton: true, closeOnClick: true, className: 'pdx_reporter_popup'});
         let currentHoveredReportCoords = undefined;
-        map.on('mousemove', pdxReporterLayer, (e) => {
+        map.on('mousemove', pdxReporterHoverLayer, (e) => {
             const featureCoordinates = e.features[0].geometry.coordinates.toString();
             if (currentHoveredReportCoords !== featureCoordinates) {
                 currentHoveredReportCoords = featureCoordinates;
@@ -476,10 +500,24 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        map.on('mouseleave', pdxReporterLayer, () => {
+        // If the user moves the pointer into the popup, it should remain open to allow for scrolling/interaction
+        // If the user directly moves the pointer off the marker and not into the popup, or after they move 
+        // the pointer out of the popup later, then the popup should be closed.
+        map.on('mouseleave', pdxReporterHoverLayer, (e) => {
             currentHoveredReportCoords = undefined;
             map.getCanvas().style.cursor = '';
-            pdxReporterPopup.remove();
+            const popupElement = pdxReporterPopup.getElement();
+            const movedToPopup = popupElement?.contains(e.originalEvent?.toElement);
+            // console.debug('popupElement', popupElement);
+            // console.debug('movedToPopup', movedToPopup);
+            if (movedToPopup) {
+                pdxReporterPopup.getElement().addEventListener('mouseleave', () => {
+                    // console.debug('popup mouse leave; closing');
+                    pdxReporterPopup.remove();
+                });
+            } else {
+                pdxReporterPopup.remove(); 
+            }
         });
 
         // PBOT bike route guidance signs pop-ups
@@ -641,10 +679,14 @@ document.addEventListener('DOMContentLoaded', () => {
         // Layer title is required and is always shown. Layer may optionally contain icons.
         // Checkbox is only shown at the layer level, and toggles everything on/off for that layer. 
         // Icons can be an img or svg, if svg styling can be applied. 
+        // Layer ID can be a single string or an array of strings. If an array of strings, all
+        // layers will be toggled together
         const layerConfig = [
             {
-                id: 'traffic-signals-pseudo-layer',
+                id: [signalsLayer, stopSignLayer, bikeSignLayer],
                 title: 'Signs & Signals',
+                visible: true,
+                showCheckbox: true,
                 icons: [{
                     label: 'Bike Direction Sign',
                     element: 'img',
@@ -678,7 +720,7 @@ document.addEventListener('DOMContentLoaded', () => {
             },
             rtLayerConfig,
             {
-                id: pdxReporterLayer,
+                id: [pdxReporterLayer, pdxReporterHoverLayer],
                 visible: false,
                 title: 'Recent PDX Reporter Issues',
                 showCheckbox: true,
@@ -794,12 +836,11 @@ function generateLegend(map, container, layerConfig) {
                 iconsList.classList.add(hideClass);
             }
             layerDiv.appendChild(layerCheckbox);
-            map.setLayoutProperty(layer.id, 'visibility', layer.visible ? 'visible' : 'none');
+            setLayersVisible(layer.id, layer.visible);
             layerCheckbox.addEventListener('change', (e) => {
                 // console.log('checkbox changed', e.target.checked, e);
                 const checked = e.target.checked;
-                // console.log(`toggling layer "${layer.id}" to ${checked}`);
-                map.setLayoutProperty(layer.id, 'visibility', checked ? 'visible' : 'none');
+                setLayersVisible(layer.id, checked);
                 if (!checked) {
                     iconsList.classList.add(hideClass);
                 }
@@ -831,6 +872,13 @@ function generateLegend(map, container, layerConfig) {
                 layerCheckbox.click();
             }
         });
+    });
+}
+
+function setLayersVisible(layerIds, visible) {
+    layerIds = Array.isArray(layerIds) ? layerIds : [layerIds];
+    layerIds.forEach(l => {
+        map.setLayoutProperty(l, 'visibility', visible ? 'visible' : 'none');
     });
 }
 

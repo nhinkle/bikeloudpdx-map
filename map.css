@@ -157,8 +157,20 @@ body {
     height: 0px;
 }
 
+.pdx_reporter_popup .maplibregl-popup-tip {
+    pointer-events: auto;
+}
+
 .pdx_reporter_popup .maplibregl-popup-content {
     backdrop-filter: blur(8px);
+    padding: 0;
+    padding-top: 15px;
+}
+
+.pdx_reporter_popup .maplibregl-popup-content > div {
+    max-height: 40vh;
+    overflow: auto;
+    padding: 5px;
 }
 
 .pdx_reporter_popup h2,
