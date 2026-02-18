@@ -42,10 +42,16 @@ document.addEventListener('DOMContentLoaded', () => {
         style: {text: {font: 'Noto Sans Bold'}},
     }), 'top-left');
 
-    // Close sidebar on mobile when clicking the map
-    map.on('click', () => {
-        document.querySelector('.sidebar').classList.remove('open');
-    });
+    // Update vanishing point of map to match sidebar size
+    function updatePadding() {
+        let mapPadding = 0;
+        if (window.innerWidth > 700) {
+            mapPadding = document.querySelector('.sidebar').clientWidth;
+        }
+        map.easeTo({padding: {right: mapPadding}});
+    }
+    window.addEventListener('resize', updatePadding);
+    updatePadding();
 
     map.on('load', async () => {
         // Find the index of the first symbol layer and road layer in the map style

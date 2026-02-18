@@ -40,14 +40,14 @@ a:hover, a:active {
     box-shadow: 3px 3px 4px #00000045;
 }
 
-.maplibregl-ctrl-top-left,
-.maplibregl-ctrl-bottom-left {
-    left: calc(clamp(250px, 25vw, 500px));
+.maplibregl-ctrl-top-right,
+.maplibregl-ctrl-bottom-right {
+    right: calc(clamp(250px, 25vw, 500px));
 }
 
-#map:fullscreen .maplibregl-ctrl-top-left,
-#map:fullscreen .maplibregl-ctrl-bottom-left {
-    left: 0;
+#map:fullscreen .maplibregl-ctrl-top-right,
+#map:fullscreen .maplibregl-ctrl-bottom-right {
+    right: 0;
 }
 
 .mobile_header {
@@ -56,7 +56,7 @@ a:hover, a:active {
 
 .sidebar {
     position: absolute;
-    left: 0;
+    right: 0;
     top: 0;
     bottom: 0;
     width: 25vw;
@@ -65,7 +65,7 @@ a:hover, a:active {
     background-color: #ffffffc4;
     z-index: 1;
     backdrop-filter: blur(3px);
-    box-shadow: 2px 0 3px 2px #00000036;
+    box-shadow: -2px 0 3px 2px #00000036;
     overflow: auto;
     display: flex;
     flex-direction: column;
@@ -292,8 +292,8 @@ a:hover, a:active {
         box-shadow: 0 -2px 3px 2px #00000036;
     }
 
-    .maplibregl-ctrl-top-left, .maplibregl-ctrl-bottom-left {
-        left: 0;
+    .maplibregl-ctrl-top-right, .maplibregl-ctrl-bottom-right {
+        right: 0;
     }
 
     .mobile_header {
