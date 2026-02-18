@@ -7,6 +7,7 @@
     --primary-bg-color: #FFF;
     --primary-color: #000;
     --accent-color: #ff941d;
+    --accent-color-2: #00aeff;
 }
 
 body {
@@ -15,6 +16,16 @@ body {
     padding: 0;
     margin: 0;
     font-family: Overpass, sans-serif;
+}
+
+a {
+    color: inherit;
+    text-decoration: 1px dotted underline;
+}
+
+a:hover, a:active {
+    color: var(--accent-color-2);
+    text-decoration: 2px underline;
 }
 
 #map {
@@ -68,9 +79,21 @@ body {
     font-size: 0.9em;
 }
 
+.sidebar h1 {
+    background-color: var(--header-bg-color);
+    color: var(--accent-color);
+    padding: 10px;
+    margin: 0;
+    text-align: center;
+}
+
 .sidebar .disclaimer {
     font-size: 0.8em;
     color: #555;
+}
+
+.sidebar input[type="checkbox"] {
+    accent-color: var(--accent-color);
 }
 
 .sidebar .legend {
@@ -120,11 +143,11 @@ body {
 }
 
 .legend .layer {
-    border: 1px solid #00b9ed4d;
+    border: 1px solid #0000004d;
     border-radius: 5px;
     margin: 10px 0;
     /* padding: 5px 0; */
-    background-color: #00b0ff12;
+    background-color: #00000012;
 }
 
 .layerInfo {
@@ -136,6 +159,8 @@ body {
     /* gap: 10px; */
     /* font-size: 1.3em; */
     padding: 5px;
+    background-color: #333;
+    color: #eee;
 }
 
 .layerInfo input {
@@ -290,7 +315,7 @@ body {
         display: none;
     }
 
-    .sidebar .info h1 {
+    .sidebar h1 {
         display: none;
     }
 }
