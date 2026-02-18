@@ -489,9 +489,12 @@ document.addEventListener('DOMContentLoaded', () => {
         // On-hover pop-ups of PDX Reporter issues
         const pdxReporterPopup = new maplibregl.Popup({closeButton: true, closeOnClick: true, className: 'pdx_reporter_popup'});
         let currentHoveredReportCoords = undefined;
-        map.on('mousemove', pdxReporterHoverLayer, (e) => {
+        let mostRecentHoverEvent = undefined;
+        const onPdxReporterPointHovered = (e) => {
             const featureCoordinates = e.features[0].geometry.coordinates.toString();
             if (currentHoveredReportCoords !== featureCoordinates) {
+                console.log('opening popup', e);
+                mostRecentHoverEvent = e.originalEvent;
                 currentHoveredReportCoords = featureCoordinates;
                 map.getCanvas().style.cursor = 'pointer';
                 
@@ -521,12 +524,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 pdxReporterPopup.setLngLat(coordinates).setDOMContent(div).addTo(map);
             }
+        }
+        // Hover/mousemove doesn't work on mobile devices, so we need to check for both hover (desktop) and touchstart (mobile) events
+        map.on('mousemove', pdxReporterHoverLayer, onPdxReporterPointHovered);
+        map.on('touchstart', pdxReporterHoverLayer, (e) => {
+            // don't open popup if more than one touch point, which indicates zooming/panning
+            if (e.points.length > 1) return;
+            // must save and restore features as they get lost after timeout
+            const feats = e.features;
+            // wait a moment before opening the popup, and make sure the user isn't doing a movement
+            setTimeout(() => {
+                    if (!map.isMoving()) {
+                        e.features = feats;
+                        onPdxReporterPointHovered(e);
+                    }
+            }, 100);
         });
 
         // If the user moves the pointer into the popup, it should remain open to allow for scrolling/interaction
         // If the user directly moves the pointer off the marker and not into the popup, or after they move 
         // the pointer out of the popup later, then the popup should be closed.
-        map.on('mouseleave', pdxReporterHoverLayer, (e) => {
+        const onPdxReporterPointUnhovered = (e) => {
             currentHoveredReportCoords = undefined;
             map.getCanvas().style.cursor = '';
             const popupElement = pdxReporterPopup.getElement();
@@ -540,6 +558,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             } else {
                 pdxReporterPopup.remove(); 
+            }
+        }
+        // For desktop devices, mouseleave fires when user unhovers
+        map.on('mouseleave', pdxReporterHoverLayer, onPdxReporterPointUnhovered);
+        // For mobile devices, there is no "unhover" event. 
+        // Instead, check for any tap anywhere on the map (not limited to this layer).
+        // This event will fire immediately after the layer-specific touchstart event, which 
+        // would immediately close the newly-created popup. To prevent this, log and check 
+        // that the underlying touch event is not the same as the one that created the popup.
+        map.on('touchstart', (e) => {
+            if (pdxReporterPopup.isOpen() && e.originalEvent !== mostRecentHoverEvent && !map.isMoving()) {
+                console.log('touch start with active popup', e);
+                const initialCoords = currentHoveredReportCoords;
+                setTimeout(() => {
+                        if (!map.isMoving() && currentHoveredReportCoords == initialCoords) {
+                            onPdxReporterPointUnhovered(e);
+                        }
+                }, 100);
             }
         });
 
