@@ -42,6 +42,13 @@ document.addEventListener('DOMContentLoaded', () => {
         style: {text: {font: 'Noto Sans Bold'}},
     }), 'top-left');
 
+    // Close sidebar on mobile when clicking the map
+    const closeSidebar = () => {
+        document.querySelector('.sidebar').classList.remove('open');
+    };
+    map.on('touchstart', closeSidebar);
+    map.on('click', closeSidebar);
+
     // Update vanishing point of map to match sidebar size
     function updatePadding() {
         let mapPadding = 0;
