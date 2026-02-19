@@ -26,11 +26,41 @@ document.addEventListener('DOMContentLoaded', () => {
         showCompass: true
     }));
 
-    map.addControl(new maplibregl.FullscreenControl());
+    map.addControl(new maplibregl.FullscreenControl(), 'top-right');
 
+    map.addControl(new maplibregl.GeolocateControl({
+        positionOptions: { enableHighAccuracy: true },
+        trackUserLocation: true,
+        fitBoundsOptions: { maxZoom: 15 },
+    }));
+    
+    map.addControl(new maplibreGLMeasures.default({
+        units: 'imperial',
+        fixedAreaUnit: 'ft2',
+        fixedLengthUnit: 'ft',
+        showOnlyTotalLineLength: true,
+        style: {text: {font: 'Noto Sans Bold'}},
+    }), 'top-left');
 
+    // Close sidebar on mobile when clicking the map
+    const closeSidebar = () => {
+        document.querySelector('.sidebar').classList.remove('open');
+    };
+    map.on('touchstart', closeSidebar);
+    map.on('click', closeSidebar);
 
-    map.on('load', async () => {    
+    // Update vanishing point of map to match sidebar size
+    function updatePadding() {
+        let mapPadding = 0;
+        if (window.innerWidth > 700) {
+            mapPadding = document.querySelector('.sidebar').clientWidth;
+        }
+        map.easeTo({padding: {right: mapPadding}});
+    }
+    window.addEventListener('resize', updatePadding);
+    updatePadding();
+
+    map.on('load', async () => {
         // Find the index of the first symbol layer and road layer in the map style
         const layers = map.getStyle().layers;
         let firstSymbolId;
@@ -255,7 +285,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // PDX Reporter data from webhookdb
         // Raw json format must be reshaped into GeoJSON for proper use as a map source
         const pdxReporterData = await fetch('https://api.webhookdb.com/v1/saved_queries/svq_23en3z2idq56ktlc2ivb4x6ri/run').then(r => r.json());
-        pdxReporterGeoData = {"type": "FeatureCollection", "features": []};
+        let pdxReporterGeoData = {"type": "FeatureCollection", "features": []};
         pdxReporterData.rows.forEach(r => {
             const {entry_id, geo_lat, geo_lng, ...properties} = pdxReporterData.headers.reduce((acc, cur, ix) => {
                 acc[cur] = r[ix];
@@ -466,9 +496,13 @@ document.addEventListener('DOMContentLoaded', () => {
         // On-hover pop-ups of PDX Reporter issues
         const pdxReporterPopup = new maplibregl.Popup({closeButton: true, closeOnClick: true, className: 'pdx_reporter_popup'});
         let currentHoveredReportCoords = undefined;
-        map.on('mousemove', pdxReporterHoverLayer, (e) => {
+        let mostRecentHoverEvent = undefined;
+        // Activate when target layer is hovered (desktop) or tapped (mobile)
+        onHoverOrTap(map, pdxReporterHoverLayer, (e) => {
             const featureCoordinates = e.features[0].geometry.coordinates.toString();
             if (currentHoveredReportCoords !== featureCoordinates) {
+                console.log('opening popup', e);
+                mostRecentHoverEvent = e.originalEvent;
                 currentHoveredReportCoords = featureCoordinates;
                 map.getCanvas().style.cursor = 'pointer';
                 
@@ -503,7 +537,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // If the user moves the pointer into the popup, it should remain open to allow for scrolling/interaction
         // If the user directly moves the pointer off the marker and not into the popup, or after they move 
         // the pointer out of the popup later, then the popup should be closed.
-        map.on('mouseleave', pdxReporterHoverLayer, (e) => {
+        const onPdxReporterPointUnhovered = (e) => {
             currentHoveredReportCoords = undefined;
             map.getCanvas().style.cursor = '';
             const popupElement = pdxReporterPopup.getElement();
@@ -518,15 +552,36 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 pdxReporterPopup.remove(); 
             }
+        }
+        // For desktop devices, mouseleave fires when user unhovers
+        map.on('mouseleave', pdxReporterHoverLayer, onPdxReporterPointUnhovered);
+        // For mobile devices, there is no "unhover" event, and closeOnClick is incompatible 
+        // on touch devices with the drawing plugin used for measurements. 
+        // Instead, check for any tap anywhere on the map (not limited to this layer).
+        // This event will fire immediately after the layer-specific touchstart event, which 
+        // would immediately close the newly-created popup. To prevent this, log and check 
+        // that the underlying touch event is not the same as the one that created the popup.
+        map.on('touchstart', (e) => {
+            if (pdxReporterPopup.isOpen() && e.originalEvent !== mostRecentHoverEvent && !map.isMoving()) {
+                // console.log('touch start with active popup', e);
+                const initialCoords = currentHoveredReportCoords;
+                setTimeout(() => {
+                        if (!map.isMoving() && currentHoveredReportCoords == initialCoords) {
+                            onPdxReporterPointUnhovered(e);
+                        }
+                }, 100);
+            }
         });
 
         // PBOT bike route guidance signs pop-ups
         // Pop-up displays when hovered, stays open and zooms in to perspective facing the sign when clicked
 
         const routePopup = new maplibregl.Popup({closeButton: true, closeOnClick: false, closeOnMove: false});
+        window.routePopup = routePopup;
         let hasLeftAfterClosing = true;
         let currentHoveredSignCoords = undefined;
         let currentClickedSignCoords = undefined;
+        let currentHoveredSignFeature = undefined;
         let pitchBearingBeforeZoom = [0, 0];
 
         // Reset camera angle when exiting pop-up if camera hasn't been moved since zooming into the sign
@@ -537,6 +592,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     pitch: 0,
                 });
             }
+            currentHoveredSignCoords = false;
         });
 
         // Detect when user pitches or rotates camera, so camera will stay at new position when closing popup
@@ -553,12 +609,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Route sign hover logic: display the popup with the current sign code's image
         // Hovering over a new sign when an existing one was clicked into clears the "clicked" state
-        map.on('mousemove', 'pbot-bikesigns-layer', (e) => {
+        onHoverOrTap(map, bikeSignLayer, (e) => {
             map.getCanvas().style.cursor = 'pointer';
-
-            const featureCoordinates = e.features[0].geometry.coordinates.toString();
+            const feature = e.features[0];
+            const featureCoordinates = feature.geometry.coordinates.toString();
             if (hasLeftAfterClosing && currentHoveredSignCoords !== featureCoordinates) {
+                mostRecentHoverEvent = e.originalEvent;
                 currentHoveredSignCoords = featureCoordinates;
+                currentHoveredSignFeature = feature;
+
                 if (currentClickedSignCoords !== featureCoordinates) {
                     currentClickedSignCoords = undefined;
                 }
@@ -568,34 +627,58 @@ document.addEventListener('DOMContentLoaded', () => {
                 const img = new Image();
                 img.src = `https://pbotapps.blob.core.windows.net/sign-library/${signCode}%40128.png`;
                 routePopup.setLngLat(coordinates).setDOMContent(img).addTo(map);
+                routePopup.getElement().querySelector('img').addEventListener('touchstart', (e) => {
+                    console.log('tapped popup from touchstart listener in creator');
+                    onRouteSignClicked(e);
+                });
             }
         });
 
         // If a route sign is hovered only, close when mouse leaves (hover ends)
         // If the sign was clicked on, leave it open, but track it's no longer hovered
-        map.on('mouseleave', 'pbot-bikesigns-layer', (e) => {
-            if (!currentClickedSignCoords) {
+        const onRoutePopupClose = (e) => {
+            if (!currentClickedSignCoords || e.type === 'touchstart') {
                 routePopup.remove();
             }
             map.getCanvas().style.cursor = '';
             hasLeftAfterClosing = true;
             currentHoveredSignCoords = undefined;
+        };
+
+        // Desktop browsers: close popup when no longer hovered
+        map.on('mouseleave', bikeSignLayer, onRoutePopupClose);
+        // Touch devices: close popup when tapped elsewhere on map
+        map.on('touchstart', (e) => {
+            if (routePopup.isOpen() && e.originalEvent !== mostRecentHoverEvent && !map.isMoving()) {
+                console.log('touch start with active popup', e);
+                const initialCoords = currentHoveredSignCoords;
+                setTimeout(() => {
+                        if (!map.isMoving() && currentHoveredSignCoords == initialCoords) {
+                            onRoutePopupClose(e);
+                        }
+                }, 100);
+            }
         });
 
-        // If a route sign is clocked on, leave it open, and zoom in to its position
+        // If a route sign is clicked on, leave it open, and zoom in to its position
         // If clicked again, close the pop-up
-        map.on('click', 'pbot-bikesigns-layer', (e) => {
-            const clickedFeature = e.features[0];
-            const clickedFeatureCoordinates = clickedFeature.geometry.coordinates.toString();
-            if (currentClickedSignCoords === clickedFeatureCoordinates) {
-                // close it
-                console.log('closing pop-up');
+        const onRouteSignClicked = (e) => {
+            let clickedFeature = e.features && e.features[0] || currentHoveredSignFeature;
+            const clickedFeatureCoordinates = clickedFeature?.geometry.coordinates.toString();
+            if (clickedFeatureCoordinates && currentClickedSignCoords === clickedFeatureCoordinates) {
+                // close it if clicked out, reset camera if tapped on
                 currentClickedSignCoords = undefined;
-                currentHoveredSignCoords = undefined;
-                routePopup.remove();
-                hasLeftAfterClosing = false;
-                curPitchBearing = [map.getPitch(), map.getBearing()];
-
+                if (e.type === 'touchstart') {
+                    map.easeTo({
+                        bearing: 0,
+                        pitch: 0,
+                    });
+                } else {
+                    currentHoveredSignCoords = undefined;
+                    routePopup.remove();
+                    hasLeftAfterClosing = false;
+                    curPitchBearing = [map.getPitch(), map.getBearing()];
+                }
             } else {
                 // adjust the map
                 pitchBearingBeforeZoom = [map.getPitch(), map.getBearing()];
@@ -608,7 +691,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     bearing,
                 });
             }
-        });
+        };
+
+        map.on('click', bikeSignLayer, onRouteSignClicked);
 
 
         ////////////////////////////////////////////
@@ -928,4 +1013,22 @@ function generateIcon(icon, container) {
     container.appendChild(iconItem);
     iconItem.appendChild(imgDiv);
     iconItem.appendChild(labelDiv);
+}
+
+function onHoverOrTap(map, layerId, callback) {
+    // Hover/mousemove doesn't work on mobile devices, so we need to check for both hover (desktop) and touchstart (mobile) events
+    map.on('mousemove', layerId, callback);
+    map.on('touchstart', layerId, (e) => {
+        // don't open popup if more than one touch point, which indicates zooming/panning
+        if (e.points.length > 1) return;
+        // must save and restore features as they get lost after timeout
+        const feats = e.features;
+        // wait a moment before opening the popup, and make sure the user isn't doing a movement
+        setTimeout(() => {
+                if (!map.isMoving()) {
+                    e.features = feats;
+                    callback(e);
+                }
+        }, 100);
+    });
 }

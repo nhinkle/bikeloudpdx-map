@@ -4,6 +4,7 @@
 <head>
     <title>BikeLoudPDX Map</title>
     <link rel="icon" href="https://bikeloudpdx.org/favicon.ico" type="image/png">
+    <meta name="theme-color" content="#000000">
     <meta name="viewport" content="width=device-width,interactive-widget=overlays-content,user-scalable=no" />
 
     <script src="https://unpkg.com/maplibre-gl@^5.13.0/dist/maplibre-gl.js"></script>
@@ -13,14 +14,22 @@
     <!-- <script src="https://unpkg.com/esri-gl/dist/esri-gl.js"></script> -->
     <script src="esri-gl/esri-gl.min.js"></script>
     
+    <script src="https://unpkg.com/maplibre-gl-measures@latest/dist/maplibre-gl-measures.js"></script>
+
     <link href="map.css" rel="stylesheet">
     <script src="map.js"></script>
 </head>
 
 <body>
+    <header class="mobile_header">
+        <h1><a href="https://bikeloudpdx.org/">BikeLoudPDX</a> Map</h1>
+        <button class="hamburger" aria-label="Toggle layer menu" onclick="document.querySelector('.sidebar').classList.toggle('open')">
+            <span></span><span></span><span></span>
+        </button>
+    </header>
     <div class="sidebar">
+        <h1><a href="https://bikeloudpdx.org/">BikeLoudPDX</a> Map</h1>
         <header class="info">
-            <h1>BikeLoudPDX Map</h1>
             <p>
                 This map provides useful reference data for route planning, community engagement, advocacy, and 
                 other biking and active transportation activities in Portland, OR. 
@@ -39,7 +48,7 @@
         <footer class="info">
             <p>
             This map was created by <a href="https://nathanhinkle.com/">Nathan Hinkle</a> for <a href="https://bikeloudpdx.org/">BikeLoudPDX</a>.
-            View source on GitHub. Pull requests are welcome!
+            View source on <a href="https://github.com/nhinkle/bikeloudpdx-map">GitHub</a>. Pull requests are welcome!
             </p>
             <p class="disclaimer">
                 This map is provided for general informational purposes only. 
