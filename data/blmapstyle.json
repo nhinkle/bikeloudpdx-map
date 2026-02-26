@@ -1260,12 +1260,13 @@
         "text-font": ["Noto Sans Regular"],
         "text-rotation-alignment": "map",
         "text-size": ["interpolate", ["linear"], ["zoom"], 13, 12, 14, 13],
-        "symbol-spacing": 600
+        "symbol-spacing": 600,
+        "text-anchor": "top"
       },
       "paint": {
-        "text-color": "#444",
+        "text-color": "#333",
         "text-halo-blur": 1,
-        "text-halo-width": 1.5,
+        "text-halo-width": 2,
         "text-halo-color": "#FFF"
       }
     },
@@ -1293,13 +1294,14 @@
         "text-font": ["Noto Sans Regular"],
         "text-rotation-alignment": "map",
         "text-size": ["interpolate", ["linear"], ["zoom"], 13, 12, 14, 13],
-        "symbol-spacing": 400
+        "symbol-spacing": 400,
+        "text-anchor": "top"
       },
       "paint": {
-        "text-color": "#333",
+        "text-color": "#222",
         "text-halo-blur": 1,
-        "text-halo-width": 1.5,
-        "text-halo-color": "rgba(255, 255, 255, 1)"
+        "text-halo-width": 2,
+        "text-halo-color": "#FFF"
       }
     },
     {
@@ -1322,6 +1324,13 @@
           "match",
           ["get", "network"],
           ["us-highway", "us-interstate", "us-state"],
+          false,
+          true
+        ],
+        [
+          "match",
+          ["get", "class"],
+          ["path"],
           false,
           true
         ]
@@ -1445,7 +1454,7 @@
       "source": "openmaptiles",
       "source-layer": "place",
       "minzoom": 8,
-      "maxzoom": 12,
+      "maxzoom": 14,
       "filter": [
         "match",
         ["get", "class"],
@@ -1480,6 +1489,7 @@
       "source": "openmaptiles",
       "source-layer": "place",
       "minzoom": 9,
+      "maxzoom": 13,
       "filter": ["==", ["get", "class"], "village"],
       "layout": {
         "icon-allow-overlap": true,
@@ -1518,6 +1528,7 @@
       "source": "openmaptiles",
       "source-layer": "place",
       "minzoom": 6,
+      "maxzoom": 13,
       "filter": ["==", ["get", "class"], "town"],
       "layout": {
         "icon-allow-overlap": true,
@@ -1584,6 +1595,7 @@
       "source": "openmaptiles",
       "source-layer": "place",
       "minzoom": 3,
+      "maxzoom": 13,
       "filter": [
         "all",
         ["==", ["get", "class"], "city"],
@@ -1629,6 +1641,7 @@
       "source": "openmaptiles",
       "source-layer": "place",
       "minzoom": 3,
+      "maxzoom": 13,
       "filter": [
         "all",
         ["==", ["get", "class"], "city"],

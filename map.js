@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
         container: 'map',
         // style: 'https://tiles.openfreemap.org/styles/positron',
         // style: 'https://tiles.openfreemap.org/styles/liberty',
-        style: 'data/efsry9v.json',
+        style: 'data/blmapstyle.json',
         // center: [-122.5927, 45.4885],
         // zoom: 11,
         bounds: srcBoundOptions.bounds,
@@ -460,6 +460,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 'icon-rotate': ["-", 90, ['get', 'Rotation']],
                 'icon-rotation-alignment': 'map',
                 'icon-overlap': 'cooperative',
+                'icon-ignore-placement': true,
             },
             paint: {
                 'icon-opacity': [
@@ -510,6 +511,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 'icon-rotate': ["-", 90, ['get', 'Rotation']],
                 'icon-rotation-alignment': 'map',
                 'icon-overlap': 'always',
+                'icon-ignore-placement': true,
             },
             // minzoom: signsMinZoom,
             minzoom: 14,
