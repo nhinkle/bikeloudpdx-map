@@ -106,6 +106,35 @@ a:hover, a:active {
     flex-grow: 1;
 }
 
+.legend_main_layers:empty {
+    height: 100%;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.legend_main_layers:empty:after {
+    content: "";
+    width: 48px;
+    height: 48px;
+    border: 5px solid var(--accent-color);
+    border-bottom-color: transparent;
+    border-radius: 50%;
+    display: inline-block;
+    box-sizing: border-box;
+    animation: spinner_rotation 1s linear infinite;
+}
+
+@keyframes spinner_rotation {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
 .sidebar .legend ul {
     margin: 0;
     padding: 0;
