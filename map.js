@@ -109,6 +109,16 @@ document.addEventListener('DOMContentLoaded', () => {
             throw err;
         });
 
+        // RRFB icon
+        const rrfbImg = 'icons/rrfb-icon.png';
+        await map.loadImage(rrfbImg).then(img => {
+            const scale = Math.max(img.data.width, img.data.height) / 16;
+            map.addImage('rrfb-img', img.data, {pixelRatio: scale});
+        }, err => {
+            throw err;
+        });
+
+
 
         // 3D terrain data. Currently disabled as it's not very good resolution, especially in downtown Portland. 
 
@@ -280,7 +290,12 @@ document.addEventListener('DOMContentLoaded', () => {
             },
         );
 
-
+        // PBOT flashing signals
+        map.addSource('pbot-rrfb-src', {
+            type: 'geojson',
+            data: 'https://www.portlandmaps.com/arcgis/rest/services/Public/PBOT_Assets/MapServer/206/query?where=ISBType+IN+%282540%2C+2550%29&text=&objectIds=&time=&timeRelation=esriTimeRelationOverlaps&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Foot&relationParam=&outFields=&returnGeometry=true&returnTrueCurves=false&maxAllowableOffset=&geometryPrecision=&outSR=4326&havingClause=&returnIdsOnly=false&returnCountOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&gdbVersion=&historicMoment=&returnDistinctValues=false&resultOffset=&resultRecordCount=&returnExtentOnly=false&sqlFormat=none&datumTransformation=&parameterValues=&rangeValues=&quantizationParameters=&featureEncoding=esriDefault&f=geojson',
+            attribution: pbotAttrib,
+        });
 
         // PDX Reporter data from webhookdb
         // Raw json format must be reshaped into GeoJSON for proper use as a map source
@@ -428,21 +443,6 @@ document.addEventListener('DOMContentLoaded', () => {
             },
         });
 
-        const signalsLayer = 'pbot-signals-layer';
-        map.addLayer({
-            id: signalsLayer,
-            type: 'symbol',
-            source: 'pbot-signals-source',
-            layout: {
-                'icon-image': 'traffic-signal-img',
-                'icon-size': 1,
-            },
-            paint: {
-                'icon-opacity': 0.6,
-            },
-            minzoom: signalsMinZoom,
-        });
-
         const stopSignLayer = 'pbot-stopsigns-layer';
         map.addLayer({
             id: stopSignLayer,
@@ -459,6 +459,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 ],
                 'icon-rotate': ["-", 90, ['get', 'Rotation']],
                 'icon-rotation-alignment': 'map',
+                'icon-overlap': 'cooperative',
             },
             paint: {
                 'icon-opacity': [
@@ -470,6 +471,32 @@ document.addEventListener('DOMContentLoaded', () => {
                 ],
             },
             minzoom: signsMinZoom,
+        });
+
+        const signalsLayer = 'pbot-signals-layer';
+        const signalScaling = [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            0, 0.1,
+            10, 0.33,
+            16, 0.5,
+            18, 1.0,
+        ];
+        map.addLayer({
+            id: signalsLayer,
+            type: 'symbol',
+            source: 'pbot-signals-source',
+            layout: {
+                'icon-image': 'traffic-signal-img',
+                'icon-overlap': 'always',
+                'icon-size': signalScaling,
+                'icon-ignore-placement': true,
+            },
+            paint: {
+                'icon-opacity': 0.6,
+            },
+            minzoom: signalsMinZoom,
         });
 
         const bikeSignLayer = 'pbot-bikesigns-layer';
@@ -486,6 +513,23 @@ document.addEventListener('DOMContentLoaded', () => {
             },
             // minzoom: signsMinZoom,
             minzoom: 14,
+        });
+        
+        const rrfbLayer = 'pbot-rrfb-layer';
+        map.addLayer({
+            id: rrfbLayer,
+            type: 'symbol',
+            source: 'pbot-rrfb-src',
+            layout: {
+                'icon-image': 'rrfb-img',
+                'icon-size': signalScaling,
+                'icon-overlap': 'always',
+                'icon-ignore-placement': true,
+            },
+            paint: {
+                'icon-opacity': 0.8,
+            },
+            minzoom: signalsMinZoom,
         });
 
 
@@ -784,6 +828,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     label: 'Traffic Signals',
                     element: 'img',
                     content: signalImg,
+                }, {
+                    label: 'Flashing Crosswalk & Intersection Signals',
+                    element: 'img',
+                    content: rrfbImg,
                 }],
             }, 
             {
