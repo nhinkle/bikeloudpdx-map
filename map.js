@@ -293,8 +293,50 @@ document.addEventListener('DOMContentLoaded', () => {
         // PBOT flashing signals
         map.addSource('pbot-rrfb-src', {
             type: 'geojson',
-            data: 'https://www.portlandmaps.com/arcgis/rest/services/Public/PBOT_Assets/MapServer/206/query?where=ISBType+IN+%282540%2C+2550%29&text=&objectIds=&time=&timeRelation=esriTimeRelationOverlaps&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Foot&relationParam=&outFields=&returnGeometry=true&returnTrueCurves=false&maxAllowableOffset=&geometryPrecision=&outSR=4326&havingClause=&returnIdsOnly=false&returnCountOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&gdbVersion=&historicMoment=&returnDistinctValues=false&resultOffset=&resultRecordCount=&returnExtentOnly=false&sqlFormat=none&datumTransformation=&parameterValues=&rangeValues=&quantizationParameters=&featureEncoding=esriDefault&f=geojson',
+            data: 'https://www.portlandmaps.com/arcgis/rest/services/Public/PBOT_Assets/MapServer/206/query?where=ISBType+IN+%282540%2C+2550%29&outSR=4326&f=geojson',
             attribution: pbotAttrib,
+        });
+
+        // Biketown service territory
+        const biketownBorderGeojson = await fetch('https://www.portlandmaps.com/od/rest/services/COP_OpenData_Transportation/MapServer/1301/query?outFields=*&where=1%3D1&f=geojson').then(r => r.json());
+        map.addSource('biketown-border-src', {
+            type: 'geojson',
+            data: turf.mask(biketownBorderGeojson),
+            attribution: pbotAttrib,
+        });
+
+        // Biketown available bikes
+        const biketownAvailableBikes = await fetch('https://gbfs.lyft.com/gbfs/2.3/pdx/en/free_bike_status.json').then(r => r.json());
+        const maxRange = Math.max(...biketownAvailableBikes.data.bikes.map(b => b.current_range_meters));
+        let biketownGeoData = {type: 'FeatureCollection', features: []};
+        biketownAvailableBikes.data.bikes.forEach(b => {
+            if (b.is_disabled || b.is_reserved) return;
+
+            const {bike_id, lat, lon, ...properties} = b;
+            properties.pct_range = properties.current_range_meters / maxRange;
+            properties.range_miles = properties.current_range_meters / 1609;
+
+            const geometry = {
+                coordinates: [lon, lat],
+                type: 'Point',
+            };
+
+            const bikeFeat = {
+                id: bike_id,
+                type: 'Feature',
+                geometry,
+                properties,
+            };
+
+            biketownGeoData.features.push(bikeFeat);
+        });
+        map.addSource('biketown-available-src', {
+            type: 'geojson',
+            data: biketownGeoData,
+            attribution: '<a href="https://biketownpdx.com/">BikeTown</a>',
+            cluster: true,
+            clusterRadius: 5,
+            clusterMaxZoom: 15,
         });
 
         // PDX Reporter data from webhookdb
@@ -397,6 +439,46 @@ document.addEventListener('DOMContentLoaded', () => {
             paint: {'raster-opacity': 0.8},
             layout: {visibility: 'none'},
         }, firstSymbolId);
+
+        const biketownBorderLayer = 'biketown-border-layer';
+        map.addLayer({
+            id: `${biketownBorderLayer}-fill`,
+            type: 'fill',
+            source: 'biketown-border-src',
+            paint: {
+                'fill-color': '#000',
+                'fill-opacity': 0.25,
+            },
+            layout: {visibility: 'none'},
+        });
+        map.addLayer({
+            id: `${biketownBorderLayer}-line`,
+            type: 'line',
+            source: 'biketown-border-src',
+            paint: {
+                'line-color': 'rgb(252, 76, 2)',
+                'line-opacity': 0.85,
+                'line-width': 3,
+            },
+            layout: {visibility: 'none'},
+        });
+
+        const biketownBikesLayer = 'biketown-available-layer';
+        map.addLayer({
+            id: biketownBikesLayer,
+            source: 'biketown-available-src', 
+            type: 'circle', 
+            paint: {
+                'circle-color': '#FFF', 
+                'circle-stroke-color': 'rgb(252, 76, 2)', 
+                'circle-stroke-width': 2, 
+                'circle-radius': 2, 
+                'circle-blur': 0.2
+            },
+            layout: {visibility: 'none'},
+            minzoom: 11,
+        });
+
         
         const pdxReporterLayerBaseConfig = {
             type: 'circle', 
@@ -921,6 +1003,31 @@ document.addEventListener('DOMContentLoaded', () => {
                         'stroke': '#ff00007d',
                         'stroke-width': 3,
                         'filter': 'drop-shadow(0px 0px 2px red)',
+                    },
+                }],
+            },
+            {
+                id: [`${biketownBorderLayer}-fill`, `${biketownBorderLayer}-line`, biketownBikesLayer],
+                visible: false,
+                title: 'Biketown Service Area',
+                showCheckbox: true,
+                icons: [{
+                    label: 'Service area',
+                    element: 'svg',
+                    content: lineSvgData,
+                    style: {
+                        'stroke': 'rgb(252, 76, 2)',
+                        'stroke-width': 5,
+                    },
+                }, {
+                    label: 'Available bikes',
+                    element: 'svg',
+                    content: circleSvgData,
+                    style: {
+                        'stroke': 'rgb(252, 76, 2)',
+                        'stroke-width': 7,
+                        'fill': '#FFF',
+                        'transform': 'scale(0.7)',
                     },
                 }],
             }
