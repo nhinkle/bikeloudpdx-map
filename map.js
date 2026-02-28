@@ -298,84 +298,92 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         // Biketown service territory
-        const biketownBorderGeojson = await fetch('https://www.portlandmaps.com/od/rest/services/COP_OpenData_Transportation/MapServer/1301/query?outFields=*&where=1%3D1&f=geojson').then(r => r.json());
-        map.addSource('biketown-border-src', {
-            type: 'geojson',
-            data: turf.mask(biketownBorderGeojson),
-            attribution: pbotAttrib,
-        });
+        const biketownBorderGeojson = await fetch('https://www.portlandmaps.com/od/rest/services/COP_OpenData_Transportation/MapServer/1301/query?outFields=*&where=1%3D1&f=geojson').then(r => r.json()).catch(console.error);
+        if (biketownBorderGeojson) {
+            map.addSource('biketown-border-src', {
+                type: 'geojson',
+                data: turf.mask(biketownBorderGeojson),
+                attribution: pbotAttrib,
+            });    
+        }
 
         // Biketown available bikes
-        const biketownAvailableBikes = await fetch('https://gbfs.lyft.com/gbfs/2.3/pdx/en/free_bike_status.json').then(r => r.json());
-        const maxRange = Math.max(...biketownAvailableBikes.data.bikes.map(b => b.current_range_meters));
-        let biketownGeoData = {type: 'FeatureCollection', features: []};
-        biketownAvailableBikes.data.bikes.forEach(b => {
-            if (b.is_disabled || b.is_reserved) return;
+        const biketownAvailableBikes = await fetch('https://gbfs.lyft.com/gbfs/2.3/pdx/en/free_bike_status.json').then(r => r.json()).catch(console.error);
+        if (biketownAvailableBikes) {
+            const maxRange = Math.max(...biketownAvailableBikes.data.bikes.map(b => b.current_range_meters));
+            let biketownGeoData = {type: 'FeatureCollection', features: []};
+            biketownAvailableBikes.data.bikes.forEach(b => {
+                if (b.is_disabled || b.is_reserved) return;
+    
+                const {bike_id, lat, lon, ...properties} = b;
+                properties.pct_range = properties.current_range_meters / maxRange;
+                properties.range_miles = properties.current_range_meters / 1609;
+    
+                const geometry = {
+                    coordinates: [lon, lat],
+                    type: 'Point',
+                };
+    
+                const bikeFeat = {
+                    id: bike_id,
+                    type: 'Feature',
+                    geometry,
+                    properties,
+                };
+    
+                biketownGeoData.features.push(bikeFeat);
+            });
+            map.addSource('biketown-available-src', {
+                type: 'geojson',
+                data: biketownGeoData,
+                attribution: '<a href="https://biketownpdx.com/">BikeTown</a>',
+                cluster: true,
+                clusterRadius: 5,
+                clusterMaxZoom: 15,
+            });
+        }
 
-            const {bike_id, lat, lon, ...properties} = b;
-            properties.pct_range = properties.current_range_meters / maxRange;
-            properties.range_miles = properties.current_range_meters / 1609;
-
-            const geometry = {
-                coordinates: [lon, lat],
-                type: 'Point',
-            };
-
-            const bikeFeat = {
-                id: bike_id,
-                type: 'Feature',
-                geometry,
-                properties,
-            };
-
-            biketownGeoData.features.push(bikeFeat);
-        });
-        map.addSource('biketown-available-src', {
-            type: 'geojson',
-            data: biketownGeoData,
-            attribution: '<a href="https://biketownpdx.com/">BikeTown</a>',
-            cluster: true,
-            clusterRadius: 5,
-            clusterMaxZoom: 15,
-        });
 
         // PDX Reporter data from webhookdb
         // Raw json format must be reshaped into GeoJSON for proper use as a map source
-        const pdxReporterData = await fetch('https://api.webhookdb.com/v1/saved_queries/svq_23en3z2idq56ktlc2ivb4x6ri/run').then(r => r.json());
-        let pdxReporterGeoData = {"type": "FeatureCollection", "features": []};
-        pdxReporterData.rows.forEach(r => {
-            const {entry_id, geo_lat, geo_lng, ...properties} = pdxReporterData.headers.reduce((acc, cur, ix) => {
-                acc[cur] = r[ix];
-                return acc;
-            }, {});
+        const pdxReporterData = await fetch('https://api.webhookdb.com/v1/saved_queries/svq_23en3z2idq56ktlc2ivb4x6ri/run').then(r => r.json()).catch(console.error);
+        if (pdxReporterData) {
+            let pdxReporterGeoData = {"type": "FeatureCollection", "features": []};
+            pdxReporterData.rows.forEach(r => {
+                const {entry_id, geo_lat, geo_lng, ...properties} = pdxReporterData.headers.reduce((acc, cur, ix) => {
+                    acc[cur] = r[ix];
+                    return acc;
+                }, {});
+    
+                const geometry = {
+                    "coordinates": [parseFloat(geo_lng), parseFloat(geo_lat)],
+                    "type": "Point"
+                };
+    
+                const rowData = {
+                    id: entry_id,
+                    "type": "Feature", 
+                    geometry, 
+                    properties, 
+                };
+    
+                pdxReporterGeoData.features.push(rowData);
+            });
+            
+            map.addSource('pdx-reporter-src', {
+                type: 'geojson',
+                data: pdxReporterGeoData,
+                attribution: '<a href="https://pdxreporter.webhookdb.com/">WebHookDB</a>',
+            });
+        }
 
-            const geometry = {
-                "coordinates": [parseFloat(geo_lng), parseFloat(geo_lat)],
-                "type": "Point"
-            };
-
-            const rowData = {
-                id: entry_id,
-                "type": "Feature", 
-                geometry, 
-                properties, 
-            };
-
-            pdxReporterGeoData.features.push(rowData);
-        });
-        
-        map.addSource('pdx-reporter-src', {
-            type: 'geojson',
-            data: pdxReporterGeoData,
-            attribution: '<a href="https://pdxreporter.webhookdb.com/">WebHookDB</a>',
-        });
 
         ////////////////////////////////////////////
         //////////// Layers ////////////////////////
         ////////////////////////////////////////////
 
         const pavementLayer = 'pbot-markings-layer';
-        map.addLayer({
+        addLayerIfSourceOK(map, {
             id: pavementLayer,
             type: 'raster',
             source: 'pbot-markings',
@@ -385,7 +393,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         
         const routesLayer = 'pbot-routes-layer';
-        map.addLayer({
+        addLayerIfSourceOK(map, {
             id: routesLayer,
             type: 'raster',
             source: 'pbot-routes',
@@ -395,7 +403,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }, firstSymbolId);
 
         const speedLimitLayer = 'pbot-speed-limit-layer';
-        map.addLayer({
+        addLayerIfSourceOK(map, {
             id: speedLimitLayer,
             type: 'raster',
             source: 'pbot-speed-limits',
@@ -403,7 +411,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }, firstSymbolId);
 
         const crashLayer = 'pbot-high-crash-network';
-        map.addLayer({
+        addLayerIfSourceOK(map, {
             id: crashLayer,
             source: 'pbot-high-crash-network-source',
             type: 'line',
@@ -414,7 +422,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }, firstSymbolId);
 
         const pdxOrthoLayer = 'pdx-ortho-layer';
-        map.addLayer({
+        addLayerIfSourceOK(map, {
             id: pdxOrthoLayer, 
             type: 'raster', 
             source: 'pdx-orthos-src',
@@ -423,7 +431,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }, routesLayer);
 
         const esriImgLayer = 'esri-ortho-layer';
-        map.addLayer({
+        addLayerIfSourceOK(map, {
             id: esriImgLayer,
             type: 'raster',
             source: 'esri-imagery-src',
@@ -432,7 +440,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }, routesLayer);
 
         const rwgpsLayer = 'rwgps-heatmap-layer';
-        map.addLayer({
+        addLayerIfSourceOK(map, {
             id: rwgpsLayer, 
             type: 'raster', 
             source: 'rwgps-heatmap-src', 
@@ -441,7 +449,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }, firstSymbolId);
 
         const biketownBorderLayer = 'biketown-border-layer';
-        map.addLayer({
+        addLayerIfSourceOK(map, {
             id: `${biketownBorderLayer}-fill`,
             type: 'fill',
             source: 'biketown-border-src',
@@ -451,7 +459,7 @@ document.addEventListener('DOMContentLoaded', () => {
             },
             layout: {visibility: 'none'},
         });
-        map.addLayer({
+        addLayerIfSourceOK(map, {
             id: `${biketownBorderLayer}-line`,
             type: 'line',
             source: 'biketown-border-src',
@@ -464,7 +472,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         const biketownBikesLayer = 'biketown-available-layer';
-        map.addLayer({
+        addLayerIfSourceOK(map, {
             id: biketownBikesLayer,
             source: 'biketown-available-src', 
             type: 'circle', 
@@ -488,7 +496,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         const pdxReporterLayer = 'pdx-reporter-points';
-        map.addLayer({
+        addLayerIfSourceOK(map, {
             ...pdxReporterLayerBaseConfig,
             id: pdxReporterLayer, 
             paint: {
@@ -513,7 +521,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Invisible layer used to detect hover events with larger target
         const pdxReporterHoverLayer = 'pdx-reporter-hover';
-        map.addLayer({
+        addLayerIfSourceOK(map, {
             ...pdxReporterLayerBaseConfig,
             id: pdxReporterHoverLayer, 
             paint: {
@@ -526,7 +534,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         const stopSignLayer = 'pbot-stopsigns-layer';
-        map.addLayer({
+        addLayerIfSourceOK(map, {
             id: stopSignLayer,
             type: 'symbol',
             source: 'pbot-stopsigns-source',
@@ -566,7 +574,7 @@ document.addEventListener('DOMContentLoaded', () => {
             16, 0.5,
             18, 1.0,
         ];
-        map.addLayer({
+        addLayerIfSourceOK(map, {
             id: signalsLayer,
             type: 'symbol',
             source: 'pbot-signals-source',
@@ -583,7 +591,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         const bikeSignLayer = 'pbot-bikesigns-layer';
-        map.addLayer({
+        addLayerIfSourceOK(map, {
             id: bikeSignLayer, 
             type: 'symbol', 
             source: 'pbot-bikesigns-source',
@@ -600,7 +608,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         
         const rrfbLayer = 'pbot-rrfb-layer';
-        map.addLayer({
+        addLayerIfSourceOK(map, {
             id: rrfbLayer,
             type: 'symbol',
             source: 'pbot-rrfb-src',
@@ -843,23 +851,29 @@ document.addEventListener('DOMContentLoaded', () => {
             showCheckbox: true,
             icons: [],
         };
-        const rtLegend = await routesService.generateLegend();
         const rtLegendLayers = [4];
-        rtLegend.forEach((layer) => {
-            if (rtLegendLayers.includes(layer.layerId)) {
-                layer.legend.forEach((l) => {
-                    rtLayerConfig.icons.push({
-                        label: l.label,
-                        element: 'img',
-                        content: `data:${l.contentType};base64,${l.imageData}`,
+        window.routesService = routesService;
+        await routesService.generateLegend().then(rtLegend => {
+            rtLegend.forEach((layer) => {
+                if (rtLegendLayers.includes(layer.layerId)) {
+                    layer.legend.forEach((l) => {
+                        rtLayerConfig.icons.push({
+                            label: l.label,
+                            element: 'img',
+                            content: `data:${l.contentType};base64,${l.imageData}`,
+                        });
                     });
-                });
-            }
+                }
+            });
+        }).catch(err => {
+            console.error('Error generating legend for routes layer:', err);
+            rtLayerConfig.icons.push({
+                label: 'Unable to load legend',
+            });
         });
-
         // Update speed limit layer styling before generating legend
-        const speedLimitDynamicLayers = await fetch('data/speed-limit-dynamic-layers.json').then(r => r.json());
-        speedLimitService.setDynamicLayers(speedLimitDynamicLayers);
+        await fetch('data/speed-limit-dynamic-layers.json').then(r => r.json()).then(
+            j => speedLimitService.setDynamicLayers(j)).catch(console.error);
 
         // Legend for speed limits layer must be generated from the feature server,
         // as the layer is rendered fully server-side
@@ -870,20 +884,25 @@ document.addEventListener('DOMContentLoaded', () => {
             showCheckbox: true,
             icons: [],
         };
-        const slLegend = await speedLimitService.generateLegend();
-        const slLegendLayers = [55,56];
-        slLegend.forEach((layer) => {
-            if (slLegendLayers.includes(layer.layerId)) {
-                layer.legend.forEach((l) => {
-                    slLayerConfig.icons.push({
-                        label: l.label || layer.layerName,
-                        element: 'img',
-                        content: `data:${l.contentType};base64,${l.imageData}`,
+        await speedLimitService.generateLegend().then(slLegend => {
+            const slLegendLayers = [55,56];
+            slLegend.forEach((layer) => {
+                if (slLegendLayers.includes(layer.layerId)) {
+                    layer.legend.forEach((l) => {
+                        slLayerConfig.icons.push({
+                            label: l.label || layer.layerName,
+                            element: 'img',
+                            content: `data:${l.contentType};base64,${l.imageData}`,
+                        });
                     });
-                });
-            }
+                }
+            });
+        }).catch(err => {
+            console.error('Error loading speed limits legend:', err);
+            slLayerConfig.icons.push({
+                label: 'Unable to load legend',
+            });
         });
-
         
 
         // Legend config is built manually to control labels and styling for clarity
@@ -1037,12 +1056,16 @@ document.addEventListener('DOMContentLoaded', () => {
         generateLegend(map, legend, layerConfig);
 
         // Fetching and applying the dynamic layers takes a moment, so we do this last
-        const markingsDynamicLayers = await fetch('data/pbot-assets-dynamic-layers.json').then(r => r.json());
-        markingsService.setDynamicLayers(markingsDynamicLayers);
-
+        await fetch('data/pbot-assets-dynamic-layers.json').then(r => r.json()).then(
+            j => markingsService.setDynamicLayers(j)).catch(console.error);
     });
 });
 
+function addLayerIfSourceOK(map, data, ...args) {
+    if (map.getSource(data.source)) {
+        map.addLayer(data, ...args);
+    }
+}
 
 function generateLegend(map, container, layerConfig) {
     layerConfig.forEach(layer => {
