@@ -145,12 +145,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const pbotAttrib = '<a href="https://www.portlandmaps.com/">City of Portland GIS</a>';
         
         // PBOT high crash network
-        map.addSource('pbot-high-crash-network-source', {
-            type: 'geojson',
-            data: 'https://www.portlandmaps.com/od/rest/services/COP_OpenData_Transportation/MapServer/209/query?f=geojson',
-            attribution: pbotAttrib,
-        });
-
+        addSourceFromService(
+            map, 
+            'pbot-high-crash-network-source',
+            'https://www.portlandmaps.com/od/rest/services/COP_OpenData_Transportation/MapServer/209/query?f=geojson',
+            {
+                attribution: pbotAttrib,
+            },
+        );
+        
         // PBOT recommended bike routes
         const routesService = new esrigl.DynamicMapService(
             'pbot-routes', 
@@ -238,144 +241,147 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // PBOT traffic signals
         const signalsMinZoom = 14;
-        const signalsSrc = await new esrigl.FeatureService(
-            'pbot-signals-source', 
+        addSourceFromService(
             map, 
+            'pbot-signals-source',
+            'https://www.portlandmaps.com/arcgis/rest/services/Public/PBOT_Assets/MapServer/199/query',
             {
-                url: 'https://www.portlandmaps.com/arcgis/rest/services/Public/PBOT_Assets/MapServer/199',
-                useVectorTiles: false,
-                useBoundingBox: true,
-            },
-            {
-                ...srcBoundOptions,
-                minzoom: signalsMinZoom,
+                attribution: pbotAttrib,
             },
         );
 
         // PBOT stop signs
         const signsMinZoom = 16;
-        const stopSignsSource = await new esrigl.FeatureService(
-            'pbot-stopsigns-source', 
+        addSourceFromService(
             map, 
+            'pbot-stopsigns-source',
+            'https://www.portlandmaps.com/arcgis/rest/services/Public/PBOT_Assets/MapServer/100/query',
             {
-                url: 'https://www.portlandmaps.com/arcgis/rest/services/Public/PBOT_Assets/MapServer/100',
-                useVectorTiles: false,
-                useBoundingBox: true,
-                where: "SIGNCODE IN ('R1010','R1011')",
-                outFields: 'rotation',
+                attribution: pbotAttrib,
             },
             {
-                ...srcBoundOptions,
-                minzoom: signsMinZoom,
-                attribution: pbotAttrib,
+                where: "SIGNCODE IN ('R1010','R1011')",
+                outFields: 'rotation',
             },
         );
 
         // PBOT bike routing signs
-        const bikeSignsSource = await new esrigl.FeatureService(
-            'pbot-bikesigns-source', 
+        addSourceFromService(
             map, 
+            'pbot-bikesigns-source',
+            'https://www.portlandmaps.com/arcgis/rest/services/Public/PBOT_Assets/MapServer/102/query',
             {
-                url: 'https://www.portlandmaps.com/arcgis/rest/services/Public/PBOT_Assets/MapServer/102',
-                useVectorTiles: false,
-                useBoundingBox: true,
+                attribution: pbotAttrib,
+            },
+            {
                 where: "SIGNCODE LIKE 'S5%'",
                 outFields: 'signcode,rotation',
             },
+        );
+
+       console.log('after pbot-bikesigns-source', map.getSource('pbot-bikesigns-source'));
+
+        // PBOT flashing signals
+        addSourceFromService(
+            map, 
+            'pbot-rrfb-src',
+            'https://www.portlandmaps.com/arcgis/rest/services/Public/PBOT_Assets/MapServer/206/query?where=ISBType+IN+%282540%2C+2550%29&outSR=4326&f=geojson',
             {
-                ...srcBoundOptions,
-                // minzoom: signsMinZoom,
-                minzoom: 12,
                 attribution: pbotAttrib,
             },
         );
+        console.log('after pbot-rrfb-src', map.getSource('pbot-rrfb-src'));
 
-        // PBOT flashing signals
-        map.addSource('pbot-rrfb-src', {
-            type: 'geojson',
-            data: 'https://www.portlandmaps.com/arcgis/rest/services/Public/PBOT_Assets/MapServer/206/query?where=ISBType+IN+%282540%2C+2550%29&outSR=4326&f=geojson',
+        // Biketown service area
+        addGeojsonSource(map, 'biketown-border-src', async () => {
+            const biketownBorderGeojson = await fetch('https://www.portlandmaps.com/od/rest/services/COP_OpenData_Transportation/MapServer/1301/query?outFields=*&where=1%3D1&f=geojson').then(r => r.json()).catch(console.error);
+            return turf.mask(biketownBorderGeojson);
+        }, {
             attribution: pbotAttrib,
         });
-
-        // Biketown service territory
-        const biketownBorderGeojson = await fetch('https://www.portlandmaps.com/od/rest/services/COP_OpenData_Transportation/MapServer/1301/query?outFields=*&where=1%3D1&f=geojson').then(r => r.json()).catch(console.error);
-        if (biketownBorderGeojson) {
-            map.addSource('biketown-border-src', {
-                type: 'geojson',
-                data: turf.mask(biketownBorderGeojson),
-                attribution: pbotAttrib,
-            });    
-        }
+        console.log('after biketown-border-src', map.getSource('biketown-border-src'));
 
         // Biketown available bikes
-        const biketownAvailableBikes = await fetch('https://gbfs.lyft.com/gbfs/2.3/pdx/en/free_bike_status.json').then(r => r.json()).catch(console.error);
-        if (biketownAvailableBikes) {
-            const maxRange = Math.max(...biketownAvailableBikes.data.bikes.map(b => b.current_range_meters));
+        const getBiketownBikes = async () => {
+            const biketownAvailableBikes = await fetch('https://gbfs.lyft.com/gbfs/2.3/pdx/en/free_bike_status.json').then(r => r.json()).catch(console.error);
             let biketownGeoData = {type: 'FeatureCollection', features: []};
-            biketownAvailableBikes.data.bikes.forEach(b => {
-                if (b.is_disabled || b.is_reserved) return;
-    
-                const {bike_id, lat, lon, ...properties} = b;
-                properties.pct_range = properties.current_range_meters / maxRange;
-                properties.range_miles = properties.current_range_meters / 1609;
-    
-                const geometry = {
-                    coordinates: [lon, lat],
-                    type: 'Point',
-                };
-    
-                const bikeFeat = {
-                    id: bike_id,
-                    type: 'Feature',
-                    geometry,
-                    properties,
-                };
-    
-                biketownGeoData.features.push(bikeFeat);
-            });
-            map.addSource('biketown-available-src', {
-                type: 'geojson',
-                data: biketownGeoData,
+            if (biketownAvailableBikes) {
+                const maxRange = Math.max(...biketownAvailableBikes.data.bikes.map(b => b.current_range_meters));
+                biketownAvailableBikes.data.bikes.forEach(b => {
+                    if (b.is_disabled || b.is_reserved) return;
+        
+                    const {bike_id, lat, lon, ...properties} = b;
+                    properties.pct_range = properties.current_range_meters / maxRange;
+                    properties.range_miles = properties.current_range_meters / 1609;
+        
+                    const geometry = {
+                        coordinates: [lon, lat],
+                        type: 'Point',
+                    };
+        
+                    const bikeFeat = {
+                        id: bike_id,
+                        type: 'Feature',
+                        geometry,
+                        properties,
+                    };
+        
+                    biketownGeoData.features.push(bikeFeat);
+                });
+            }
+            return biketownGeoData;
+        };
+
+        addGeojsonSource(
+            map, 
+            'biketown-available-src', 
+            getBiketownBikes,
+            {
                 attribution: '<a href="https://biketownpdx.com/">BikeTown</a>',
                 cluster: true,
                 clusterRadius: 5,
                 clusterMaxZoom: 15,
-            });
-        }
-
+            },
+        );
 
         // PDX Reporter data from webhookdb
         // Raw json format must be reshaped into GeoJSON for proper use as a map source
-        const pdxReporterData = await fetch('https://api.webhookdb.com/v1/saved_queries/svq_23en3z2idq56ktlc2ivb4x6ri/run').then(r => r.json()).catch(console.error);
-        if (pdxReporterData) {
+        const getPdxReporter = async () => {
+            const pdxReporterData = await fetch('https://api.webhookdb.com/v1/saved_queries/svq_23en3z2idq56ktlc2ivb4x6ri/run').then(r => r.json()).catch(console.error);
             let pdxReporterGeoData = {"type": "FeatureCollection", "features": []};
-            pdxReporterData.rows.forEach(r => {
-                const {entry_id, geo_lat, geo_lng, ...properties} = pdxReporterData.headers.reduce((acc, cur, ix) => {
-                    acc[cur] = r[ix];
-                    return acc;
-                }, {});
-    
-                const geometry = {
-                    "coordinates": [parseFloat(geo_lng), parseFloat(geo_lat)],
-                    "type": "Point"
-                };
-    
-                const rowData = {
-                    id: entry_id,
-                    "type": "Feature", 
-                    geometry, 
-                    properties, 
-                };
-    
-                pdxReporterGeoData.features.push(rowData);
-            });
-            
-            map.addSource('pdx-reporter-src', {
-                type: 'geojson',
-                data: pdxReporterGeoData,
+            if (pdxReporterData) {
+                pdxReporterData.rows.forEach(r => {
+                    const {entry_id, geo_lat, geo_lng, ...properties} = pdxReporterData.headers.reduce((acc, cur, ix) => {
+                        acc[cur] = r[ix];
+                        return acc;
+                    }, {});
+        
+                    const geometry = {
+                        "coordinates": [parseFloat(geo_lng), parseFloat(geo_lat)],
+                        "type": "Point"
+                    };
+        
+                    const rowData = {
+                        id: entry_id,
+                        "type": "Feature", 
+                        geometry, 
+                        properties, 
+                    };
+        
+                    pdxReporterGeoData.features.push(rowData);
+                });
+            }
+            return pdxReporterGeoData;
+        };
+
+        addGeojsonSource(
+            map, 
+            'pdx-reporter-src', 
+            getPdxReporter,
+            {
                 attribution: '<a href="https://pdxreporter.webhookdb.com/">WebHookDB</a>',
-            });
-        }
+            },
+        );
 
 
         ////////////////////////////////////////////
@@ -1061,6 +1067,75 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+// Retrieves all data from paginated ESRI/ArcGIS FeatureServer or MapServer,
+// up to the specified page limit
+async function getAllPagesFromService(url, searchParams, maxPages = 20) {
+    const u = new URL(url);
+    const p = u.searchParams;
+    p.delete('resultOffset');
+    p.delete('resultRecordCount');
+    if (!p.has('f')) {
+        p.set('f', 'geojson');
+    }
+    Object.entries(searchParams || {}).forEach(([k, v]) => {
+        p.set(k, v);
+    });
+    
+    let pages = 0;
+    let offset = 0;
+    let count = 0;
+    const responses = [];
+    let data;
+    do {
+        try {
+            console.log(u.toString());
+            data = await fetch(u).then(r => r.json());
+        } catch (err) {
+            console.error(err);
+            break; 
+        }
+        if (!data || !data.features) {
+            console.error('expected to receive features data', data);
+            break;
+        }
+        responses.push(data);
+        count = data.features.length;
+        offset += count;
+        pages++;
+        u.searchParams.set('resultOffset', offset);
+        u.searchParams.set('resultRecordCount', count);
+    } while(data.exceededTransferLimit && pages <= maxPages);
+    return turf.featureCollection(responses.map(d => d.features).flat());
+}
+
+// Add a geojson source to the map with empty data, and defer loading the data
+// to an async function that will update the data once available. Useful when 
+// the source data isn't a simple GeoJSON URL but needs some kind of processing 
+// after being loaded, but don't want to hold up the main thread while it loads.
+// dataFunc must be an async function that returns GeoJSON data.
+// config is passed directly to addSource.
+function addGeojsonSource(map, id, dataFunc, config) {
+    map.addSource(id, {
+        type: 'geojson',
+        ...config,
+        data: turf.featureCollection([]),
+    });
+
+    dataFunc().then(d => {
+        console.log('loaded data for', id, d);
+        map.getSource(id).setData(d);
+    }).catch((err) => {
+        console.error('Error loading', id, err);
+    });
+}
+
+// Combines the two functions above, adding an empty GeoJSON source to the map, 
+// then fetching all pages from an ESRI FeatureService and updating the source 
+function addSourceFromService(map, id, url, config, searchParams, maxPages = 20) {
+    addGeojsonSource(map, id, () => getAllPagesFromService(url, searchParams, maxPages), config);
+}
+
+// Adds a layer only if the source exists on the map
 function addLayerIfSourceOK(map, data, ...args) {
     if (map.getSource(data.source)) {
         map.addLayer(data, ...args);
