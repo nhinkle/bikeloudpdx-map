@@ -933,7 +933,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // layers will be toggled together
         const layerConfig = [
             {
-                id: [signalsLayer, stopSignLayer, bikeSignLayer],
+                id: [signalsLayer, stopSignLayer, bikeSignLayer, rrfbLayer],
                 title: 'Signs & Signals',
                 visible: true,
                 showCheckbox: true,
