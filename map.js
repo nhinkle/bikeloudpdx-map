@@ -1,3 +1,5 @@
+import { transformStreets, transformStreetsProtocol } from './transformtiles.js';
+
 document.addEventListener('DOMContentLoaded', () => {
 
     const srcBoundOptions = {
@@ -17,6 +19,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // to facilitate testing/development
     window.map = map;
+
+    maplibregl.addProtocol(transformStreetsProtocol, transformStreets);
+
+    // set up transform
+    map.setTransformRequest((url, resourceType) => {
+        if (url.startsWith('https://tiles.openfreemap.org/') && resourceType === 'Tile') {
+            return { url: transformStreetsProtocol + '://' + url };
+        }
+        return undefined;
+    });
 
     // Add zoom and rotation controls to the map.
     map.addControl(new maplibregl.NavigationControl({
