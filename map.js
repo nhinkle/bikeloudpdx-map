@@ -291,8 +291,6 @@ document.addEventListener('DOMContentLoaded', () => {
             },
         );
 
-       console.log('after pbot-bikesigns-source', map.getSource('pbot-bikesigns-source'));
-
         // PBOT flashing signals
         addSourceFromService(
             map, 
@@ -302,7 +300,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 attribution: pbotAttrib,
             },
         );
-        console.log('after pbot-rrfb-src', map.getSource('pbot-rrfb-src'));
 
         // Biketown service area
         addGeojsonSource(map, 'biketown-border-src', async () => {
@@ -311,7 +308,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }, {
             attribution: pbotAttrib,
         });
-        console.log('after biketown-border-src', map.getSource('biketown-border-src'));
 
         // Biketown available bikes
         const getBiketownBikes = async () => {
@@ -1100,7 +1096,7 @@ async function getAllPagesFromService(url, searchParams, maxPages = 20) {
     let data;
     do {
         try {
-            console.log(u.toString());
+            console.debug(u.toString());
             data = await fetch(u).then(r => r.json());
         } catch (err) {
             console.error(err);
@@ -1134,7 +1130,7 @@ function addGeojsonSource(map, id, dataFunc, config) {
     });
 
     dataFunc().then(d => {
-        console.log('loaded data for', id, d);
+        console.debug('loaded data for', id, d);
         map.getSource(id).setData(d);
     }).catch((err) => {
         console.error('Error loading', id, err);
