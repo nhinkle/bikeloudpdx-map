@@ -352,6 +352,15 @@ document.addEventListener('DOMContentLoaded', () => {
             },
         );
 
+        addSourceFromService(
+            map,
+            'trimet-routes-src',
+            'https://services2.arcgis.com/McQ0OlIABe29rJJy/arcgis/rest/services/TriMet_Bus_System_routes/FeatureServer/0/query?outFields=*&where=1%3D1&f=geojson',
+            {
+                attribution: 'TriMet',
+            },
+        );
+
         // PDX Reporter data from webhookdb
         // Raw json format must be reshaped into GeoJSON for proper use as a map source
         const getPdxReporter = async () => {
@@ -501,6 +510,103 @@ document.addEventListener('DOMContentLoaded', () => {
             minzoom: 11,
         });
 
+        const trimetRoutesLayer = 'trimet-routes-layer';
+        const trimetStyles = [
+            {
+                route: '090',
+                color: 'rgb(196, 31, 62)',
+                label: 'MAX Red Line',
+                offset: 1,
+            },
+            {
+                route: "100",
+                color: "rgb(19, 89, 174)",
+                label: 'MAX Blue Line',
+                offset: 0,
+            },
+            {
+                route: "190",
+                color: "rgb(255, 197, 47)",
+                label: 'MAX Yellow Line',
+                offset: 1,
+            },
+            {
+                route: "290",
+                color: "rgb(208, 95, 39)",
+                label: 'MAX Orange Line',
+                offset: 1,
+            },
+            {
+                route: "200",
+                color: "rgb(0, 131, 66)",
+                label: 'MAX Green Line',
+                offset: -1,
+            }, 
+            {
+                route: "193",
+                color: "rgb(114, 161, 48)",
+                label: 'Streetcar NS',
+                offset: 1,
+            },
+            {
+                route: "194",
+                color: "rgb(217, 25, 101)",
+                label: 'Streetcar A Loop',
+                offset: 1,
+            },
+            {
+                route: "195",
+                color: "rgb(70, 80, 190)",
+                label: 'Streetcar B Loop',
+                offset: -1,
+            },
+            {
+                route: null,
+                color: "rgba(84, 172, 255)",
+                label: 'TriMet Bus Lines',
+                offset: 0,
+            },
+        ]
+
+        const trimetRouteColorMatch = trimetStyles.reduce(
+            (acc, cur) => {
+                if (cur.route) acc.push(cur.route);
+                acc.push(cur.color);
+                return acc;
+            },
+            ["match", ["get", "RTE"]],
+        );
+
+        const trimetRouteOffsetMatch = trimetStyles.reduce(
+            (acc, cur) => {
+                if (cur.route) acc.push(cur.route);
+                acc.push(cur.offset);
+                return acc;
+            },
+            ["match", ["get", "RTE"]],
+        );
+
+        addLayerIfSourceOK(map, {
+            id: trimetRoutesLayer,
+            source: 'trimet-routes-src',
+            type: 'line',
+            paint: {
+                "line-color": trimetRouteColorMatch,
+                "line-width": [
+                    "match",
+                    ["get", "TYPE"],
+                    "MAX", 3,
+                    "SC", 3,
+                    2
+                    ],
+                "line-offset": ["*", trimetRouteOffsetMatch, 4],
+                // "line-dasharray": ["literal", [0.75, 0.25]],
+            },
+            layout: {
+                "line-sort-key": ["get", "KEYITEM"],
+                visibility: 'none',
+            }
+        }, firstSymbolId);
         
         const pdxReporterLayerBaseConfig = {
             type: 'circle', 
@@ -1063,7 +1169,24 @@ document.addEventListener('DOMContentLoaded', () => {
                         'transform': 'scale(0.7)',
                     },
                 }],
-            }
+            },
+            {
+                id: [trimetRoutesLayer],
+                visible: false,
+                title: 'TriMet Lines',
+                showCheckbox: true,
+                icons: trimetStyles.map((s) => {
+                    return {
+                        label: s.label,
+                        element: 'svg',
+                        content: lineSvgData,
+                        style: {
+                            'stroke': s.color,
+                            'stroke-width': 4 
+                        },
+                    }
+                }),
+            },
         ];
 
         const legend = document.querySelector('.sidebar .legend_main_layers');
