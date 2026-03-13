@@ -352,6 +352,7 @@ document.addEventListener('DOMContentLoaded', () => {
             },
         );
 
+        /*
         addSourceFromService(
             map,
             'trimet-routes-src',
@@ -360,6 +361,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 attribution: 'TriMet',
             },
         );
+        */
+
+        map.addSource('trimet-route-tiles', {
+            type: "vector",
+            'tiles': ['https://ws.trimet.org/geoserver/gwc/service/tms/1.0.0/ott:current_routes@EPSG:900913@pbf/{z}/{x}/{y}.pbf'],
+            minzoom: 0,
+            maxzoom: 21,
+            scheme: 'tms',
+        });
 
         // PDX Reporter data from webhookdb
         // Raw json format must be reshaped into GeoJSON for proper use as a map source
@@ -511,103 +521,98 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         const trimetRoutesLayer = 'trimet-routes-layer';
-        const trimetStyles = [
-            {
-                route: '090',
-                color: 'rgb(196, 31, 62)',
-                label: 'MAX Red Line',
-                offset: 1,
-            },
-            {
-                route: "100",
-                color: "rgb(19, 89, 174)",
-                label: 'MAX Blue Line',
-                offset: 0,
-            },
-            {
-                route: "190",
-                color: "rgb(255, 197, 47)",
-                label: 'MAX Yellow Line',
-                offset: 1,
-            },
-            {
-                route: "290",
-                color: "rgb(208, 95, 39)",
-                label: 'MAX Orange Line',
-                offset: 1,
-            },
-            {
-                route: "200",
-                color: "rgb(0, 131, 66)",
-                label: 'MAX Green Line',
-                offset: -1,
-            }, 
-            {
-                route: "193",
-                color: "rgb(114, 161, 48)",
-                label: 'Streetcar NS',
-                offset: 1,
-            },
-            {
-                route: "194",
-                color: "rgb(217, 25, 101)",
-                label: 'Streetcar A Loop',
-                offset: 1,
-            },
-            {
-                route: "195",
-                color: "rgb(70, 80, 190)",
-                label: 'Streetcar B Loop',
-                offset: -1,
-            },
-            {
-                route: null,
-                color: "rgba(84, 172, 255)",
-                label: 'TriMet Bus Lines',
-                offset: 0,
-            },
-        ]
-
-        const trimetRouteColorMatch = trimetStyles.reduce(
-            (acc, cur) => {
-                if (cur.route) acc.push(cur.route);
-                acc.push(cur.color);
-                return acc;
-            },
-            ["match", ["get", "RTE"]],
-        );
-
-        const trimetRouteOffsetMatch = trimetStyles.reduce(
-            (acc, cur) => {
-                if (cur.route) acc.push(cur.route);
-                acc.push(cur.offset);
-                return acc;
-            },
-            ["match", ["get", "RTE"]],
-        );
-
+        const trimetRoutesFilter = [
+            "!", ["any", 
+                // exclude TriMet bus bridge for max outages
+                [
+                    "all",
+                    [
+                        "==",
+                        [
+                            "slice", ["get", "route_long_name"],
+                            ["-", ["length", ["get", "route_long_name"]],4]
+                        ],
+                        " Bus"
+                    ],
+                    ["==", ["get", "route_type"], 3],
+                    ["==", ["get", "agency_id"], "TRIMET"]
+                ],
+                // exclude "ACCESS" employee shuttle
+                ["==", ["get", "route_id"], "76845"]
+            ]
+        ];
+        
         addLayerIfSourceOK(map, {
             id: trimetRoutesLayer,
-            source: 'trimet-routes-src',
-            type: 'line',
+            type: "line",
+            source: "trimet-route-tiles",
+            "source-layer": "current_routes",
             paint: {
-                "line-color": trimetRouteColorMatch,
+                "line-color": [
+                    "case",
+                    ["in", ["get", "route_type"], ["literal", [0, 2]]],
+                    ["get", "route_color"],
+                    "rgb(120, 171, 219)"
+                ],
                 "line-width": [
-                    "match",
-                    ["get", "TYPE"],
-                    "MAX", 3,
-                    "SC", 3,
-                    2
+                    "case",
+                    ["in", ["get", "route_type"], ["literal", [0, 2]]],
+                    3,
+                    1.5
+                ],
+                "line-offset": [
+                    "*",
+                    [
+                        "case",
+                        ["==", ["get", "route_type"], 0],
+                        ["match", ["get", "route_id"],
+                            "90", 0,    // red line
+                            "100", 1,   // blue line
+                            "190", -1,  // yellow line
+                            "290", -1,  // orange line
+                            "200", -2,  // green line
+                            "193", 1,   // NS streetcar
+                            "194", 1.5, // A loop streetcar
+                            "195", 0.5, // B loop streetcar
+                            0
+                        ],
+                        0
                     ],
-                "line-offset": ["*", trimetRouteOffsetMatch, 4],
-                // "line-dasharray": ["literal", [0.75, 0.25]],
+                    5
+                ],
             },
             layout: {
-                "line-sort-key": ["get", "KEYITEM"],
+                "line-sort-key": ["get", "route_sort_order"],
+                "line-cap": "butt",
+                "line-join": "miter",
                 visibility: 'none',
-            }
+            },
+            filter: trimetRoutesFilter,
         }, firstSymbolId);
-        
+
+        const trimetRtLabelLayer = 'trimet-routes-labels-layer';
+        addLayerIfSourceOK(map, {
+            id: trimetRtLabelLayer,
+            type: "symbol",
+            source: "trimet-route-tiles",
+            "source-layer": "current_routes",
+            filter: trimetRoutesFilter,
+            layout: {
+                "text-field": ["get", "route_short_name"],
+                "visibility": "visible",
+                "text-allow-overlap": false,
+                "text-ignore-placement": false,
+                "text-size": 12,
+                "symbol-placement": "line",
+                "text-keep-upright": true
+            },
+            paint: {
+                "text-halo-color": ["get", "route_color"],
+                "text-color": ["get", "route_text_color"],
+                "text-halo-width": 2,
+            },
+        });
+
         const pdxReporterLayerBaseConfig = {
             type: 'circle', 
             source: 'pdx-reporter-src',
@@ -1171,21 +1176,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 }],
             },
             {
-                id: [trimetRoutesLayer],
+                id: [trimetRoutesLayer, trimetRtLabelLayer],
                 visible: false,
-                title: 'TriMet Lines',
+                title: 'TriMet Routes',
                 showCheckbox: true,
-                icons: trimetStyles.map((s) => {
-                    return {
-                        label: s.label,
+                icons: [
+                    {
+                        label: 'Bus Lines',
                         element: 'svg',
                         content: lineSvgData,
                         style: {
-                            'stroke': s.color,
-                            'stroke-width': 4 
+                            'stroke': 'rgb(120, 171, 219)',
+                            'stroke-width': 4,
                         },
-                    }
-                }),
+                    },
+                ],
             },
         ];
 
@@ -1195,6 +1200,44 @@ document.addEventListener('DOMContentLoaded', () => {
         // Fetching and applying the dynamic layers takes a moment, so we do this last
         await fetch('data/pbot-assets-dynamic-layers.json').then(r => r.json()).then(
             j => markingsService.setDynamicLayers(j)).catch(console.error);
+
+        // Set up dynamic legend for TriMet layers, loaded from vector tiles
+        const trimetLegendEntries = {};
+        map.on('sourcedata', (e) => {
+            if (e.sourceId === 'trimet-route-tiles' && e.isSourceLoaded) {
+                const newLegendIcons = map
+                    .querySourceFeatures('trimet-route-tiles', {sourceLayer: 'current_routes'})
+                    .map(f => f.properties)
+                    .filter(p => [0, 2].includes(p.route_type))
+                    .reduce((acc, cur) => {
+                        if (!trimetLegendEntries[cur.route_long_name]) {
+                            acc[cur.route_long_name] = cur.route_color;
+                        }
+                        return acc;
+                    }, {}
+                );
+                Object.assign(trimetLegendEntries, newLegendIcons);
+                Object.entries(newLegendIcons).map(([rt, c]) => {
+                    return {
+                        label: rt,
+                        element: 'svg',
+                        content: lineSvgData,
+                        style: {
+                            'stroke': c,
+                            'stroke-width': 4,
+                        },
+                    };
+                }).forEach(ic => {
+                    const tmIcons = legend.querySelector('[class*="trimet-routes-layer"] .icons');
+                    generateIcon(ic, tmIcons);
+                    [...tmIcons.children].slice(1).sort((a, b) => {
+                        const txtA = a.querySelector('.iconlabel').innerText;
+                        const txtB = b.querySelector('.iconlabel').innerText;
+                        return txtA > txtB ? 1 : -1;
+                    }).forEach(node => tmIcons.appendChild(node));
+                });
+            }
+        });
     });
 });
 
@@ -1314,6 +1357,9 @@ function generateLegend(map, container, layerConfig) {
                 setLayersVisible(layer.id, checked);
                 if (!checked) {
                     iconsList.classList.add(hideClass);
+                }
+                if (layer.callback) {
+                    layer.callback(checked);
                 }
             });
         }
