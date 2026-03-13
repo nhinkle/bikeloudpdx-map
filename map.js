@@ -538,9 +538,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     ["==", ["get", "agency_id"], "TRIMET"]
                 ],
                 // exclude "ACCESS" employee shuttle
-                ["==", ["get", "route_id"], "76845"]
+                ["==", ["get", "route_id"], "76845"],
+                // exclude RideConnection
+                ["==", ["get", "agency_id"], "133"],
             ]
         ];
+        const tmBusColor = "rgb(120, 171, 219)";
+        const otherBusColor = "#3e5c45";
         
         addLayerIfSourceOK(map, {
             id: trimetRoutesLayer,
@@ -550,9 +554,9 @@ document.addEventListener('DOMContentLoaded', () => {
             paint: {
                 "line-color": [
                     "case",
-                    ["in", ["get", "route_type"], ["literal", [0, 2]]],
-                    ["get", "route_color"],
-                    "rgb(120, 171, 219)"
+                    ["in", ["get", "route_type"], ["literal", [0, 2]]], ["get", "route_color"],
+                    ["!=", ["get", "agency_id"], "TRIMET"], otherBusColor,
+                    tmBusColor,
                 ],
                 "line-width": [
                     "case",
@@ -598,17 +602,34 @@ document.addEventListener('DOMContentLoaded', () => {
             "source-layer": "current_routes",
             filter: trimetRoutesFilter,
             layout: {
-                "text-field": ["get", "route_short_name"],
-                "visibility": "visible",
-                "text-allow-overlap": false,
-                "text-ignore-placement": false,
+                "text-field": [
+                    "coalesce",
+                    ["get", "route_short_name"],
+                    ["get", "route_long_name"]
+                ],
                 "text-size": 12,
                 "symbol-placement": "line",
-                "text-keep-upright": true
+                // "text-keep-upright": true,
+                "text-rotation-alignment": "map",
+                "text-font": [
+                    "Open Sans Bold",
+                    "Arial Unicode MS Bold",
+                    "Open Sans Regular",
+                    "Arial Unicode MS Regular"
+                ],
+                "visibility": "none",
             },
             paint: {
-                "text-halo-color": ["get", "route_color"],
-                "text-color": ["get", "route_text_color"],
+                "text-halo-color": [
+                    "case",
+                    ["!=", ["get", "agency_id"], "TRIMET"], otherBusColor,
+                    ["get", "route_color"]
+                ],
+                "text-color": [
+                    "case",
+                    ["!=", ["get", "agency_id"], "TRIMET"], "#FFFFFF",
+                    ["get", "route_text_color"]
+                ],
                 "text-halo-width": 2,
             },
         });
@@ -1178,15 +1199,24 @@ document.addEventListener('DOMContentLoaded', () => {
             {
                 id: [trimetRoutesLayer, trimetRtLabelLayer],
                 visible: false,
-                title: 'TriMet Routes',
+                title: 'Public Transit',
                 showCheckbox: true,
                 icons: [
                     {
-                        label: 'Bus Lines',
+                        label: 'TriMet Bus Lines',
                         element: 'svg',
                         content: lineSvgData,
                         style: {
-                            'stroke': 'rgb(120, 171, 219)',
+                            'stroke': tmBusColor,
+                            'stroke-width': 4,
+                        },
+                    },
+                    {
+                        label: 'Other Bus Lines',
+                        element: 'svg',
+                        content: lineSvgData,
+                        style: {
+                            'stroke': otherBusColor,
                             'stroke-width': 4,
                         },
                     },
@@ -1230,7 +1260,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }).forEach(ic => {
                     const tmIcons = legend.querySelector('[class*="trimet-routes-layer"] .icons');
                     generateIcon(ic, tmIcons);
-                    [...tmIcons.children].slice(1).sort((a, b) => {
+                    [...tmIcons.children].slice(2).sort((a, b) => {
                         const txtA = a.querySelector('.iconlabel').innerText;
                         const txtB = b.querySelector('.iconlabel').innerText;
                         return txtA > txtB ? 1 : -1;
@@ -1240,6 +1270,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 });
+
+'#3e5c45'
 
 // Retrieves all data from paginated ESRI/ArcGIS FeatureServer or MapServer,
 // up to the specified page limit
