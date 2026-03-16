@@ -352,23 +352,22 @@ document.addEventListener('DOMContentLoaded', () => {
             },
         );
 
-        /*
-        addSourceFromService(
-            map,
-            'trimet-routes-src',
-            'https://services2.arcgis.com/McQ0OlIABe29rJJy/arcgis/rest/services/TriMet_Bus_System_routes/FeatureServer/0/query?outFields=*&where=1%3D1&f=geojson',
-            {
-                attribution: 'TriMet',
-            },
-        );
-        */
+        map.addSource('trimet-stop-tiles', {
+            type: "vector",
+            tiles: ["https://ws.trimet.org/geoserver/gwc/service/tms/1.0.0/ott:current_stops@EPSG:900913@pbf/{z}/{x}/{y}.pbf"],
+            minzoom: 14,
+            maxzoom: 21,
+            scheme: "tms",
+            attribution: '<a href="https://developer.trimet.org/gis/">TriMet</a>',
+        });
 
         map.addSource('trimet-route-tiles', {
             type: "vector",
-            'tiles': ['https://ws.trimet.org/geoserver/gwc/service/tms/1.0.0/ott:current_routes@EPSG:900913@pbf/{z}/{x}/{y}.pbf'],
+            tiles: ['https://ws.trimet.org/geoserver/gwc/service/tms/1.0.0/ott:current_routes@EPSG:900913@pbf/{z}/{x}/{y}.pbf'],
             minzoom: 0,
             maxzoom: 21,
             scheme: 'tms',
+            attribution: '<a href="https://developer.trimet.org/gis/">TriMet</a>',
         });
 
         // PDX Reporter data from webhookdb
@@ -521,30 +520,48 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         const trimetRoutesLayer = 'trimet-routes-layer';
+        const exclRoutes = [287, 288, 291, 292, 293]
         const trimetRoutesFilter = [
             "!", ["any", 
                 // exclude TriMet bus bridge for max outages
                 [
                     "all",
-                    [
-                        "==",
-                        [
-                            "slice", ["get", "route_long_name"],
-                            ["-", ["length", ["get", "route_long_name"]],4]
-                        ],
-                        " Bus"
-                    ],
                     ["==", ["get", "route_type"], 3],
-                    ["==", ["get", "agency_id"], "TRIMET"]
+                    ["==", ["get", "feed_id"], "TRIMET"],
+                    [
+                        ">=", 
+                        ["to-number", ["coalesce", ["get", "route_id"], ["get", "route_short_names"]], 0],
+                        200
+                    ],
+                    [
+                        "<",
+                        ["to-number", ["coalesce", ["get", "route_id"], ["get", "route_short_names"]], 0],
+                        300
+                    ],
                 ],
-                // exclude "ACCESS" employee shuttle
-                ["==", ["get", "route_id"], "76845"],
-                // exclude RideConnection
-                ["==", ["get", "agency_id"], "133"],
+                // exclude routes that aren't regularly scheduled and available to the public
+                [
+                    "in",
+                    ["get", "feed_id"],
+                    ["literal", [
+                        "MULT",
+                        "WASH_FLEX",
+                        "RIDECONNECTION",
+                        "CTRAN_FLEX"
+                    ]]
+                ],
             ]
         ];
-        const tmBusColor = "rgb(120, 171, 219)";
+        const tmBusColor = "rgb(134, 105, 153)";
         const otherBusColor = "#3e5c45";
+        const railStopColor = "#555555";
+        const routeColor = [
+            "case",
+            ["!=", ["get", "route_type"], 3], ["get", "route_color"],
+            ["!=", ["get", "agency_id"], "TRIMET"], otherBusColor,
+            ["!=", ["get", "route_color"], "#4679AA"], ["get", "route_color"],
+            tmBusColor,
+        ];
         
         addLayerIfSourceOK(map, {
             id: trimetRoutesLayer,
@@ -552,15 +569,10 @@ document.addEventListener('DOMContentLoaded', () => {
             source: "trimet-route-tiles",
             "source-layer": "current_routes",
             paint: {
-                "line-color": [
-                    "case",
-                    ["in", ["get", "route_type"], ["literal", [0, 2]]], ["get", "route_color"],
-                    ["!=", ["get", "agency_id"], "TRIMET"], otherBusColor,
-                    tmBusColor,
-                ],
+                "line-color": routeColor,
                 "line-width": [
                     "case",
-                    ["in", ["get", "route_type"], ["literal", [0, 2]]],
+                    ["in", ["get", "route_type"], ["literal", [0, 2, 6]]],
                     3,
                     1.5
                 ],
@@ -611,26 +623,57 @@ document.addEventListener('DOMContentLoaded', () => {
                 "symbol-placement": "line",
                 // "text-keep-upright": true,
                 "text-rotation-alignment": "map",
+                /*
                 "text-font": [
                     "Open Sans Bold",
                     "Arial Unicode MS Bold",
                     "Open Sans Regular",
                     "Arial Unicode MS Regular"
                 ],
+                */
                 "visibility": "none",
             },
             paint: {
-                "text-halo-color": [
-                    "case",
-                    ["!=", ["get", "agency_id"], "TRIMET"], otherBusColor,
-                    ["get", "route_color"]
-                ],
+                "text-halo-color": routeColor,
                 "text-color": [
                     "case",
                     ["!=", ["get", "agency_id"], "TRIMET"], "#FFFFFF",
                     ["get", "route_text_color"]
                 ],
                 "text-halo-width": 2,
+            },
+        });
+
+        const trimetStopsLayer = 'trimet-stops-layer';
+        addLayerIfSourceOK(map, {
+            id: trimetStopsLayer,
+            type: 'circle',
+            source: 'trimet-stop-tiles',
+            'source-layer': 'current_stops',
+            layout: {
+                visibility: 'none',
+            },
+            filter: trimetRoutesFilter,
+            paint: {
+                "circle-color": "#FFFFFF",
+                "circle-stroke-color": [
+                    "case",
+                    ["!=", ["get", "route_type"], 3],
+                    railStopColor,
+                    ["==", ["get", "feed_id"], "TRIMET"],
+                    tmBusColor,
+                    otherBusColor,
+                ],
+                "circle-stroke-width": [
+                    "case",
+                    ["!=", ["get", "route_type"], 3],
+                    4, 3,
+                ],
+                "circle-radius": [
+                    "case",
+                    ["!=", ["get", "route_type"], 3],
+                    3, 2,
+                ],
             },
         });
 
@@ -1197,7 +1240,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }],
             },
             {
-                id: [trimetRoutesLayer, trimetRtLabelLayer],
+                id: [trimetRoutesLayer, trimetRtLabelLayer, trimetStopsLayer],
                 visible: false,
                 title: 'Public Transit',
                 showCheckbox: true,
@@ -1270,8 +1313,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 });
-
-'#3e5c45'
 
 // Retrieves all data from paginated ESRI/ArcGIS FeatureServer or MapServer,
 // up to the specified page limit
