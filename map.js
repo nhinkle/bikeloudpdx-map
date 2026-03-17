@@ -519,8 +519,9 @@ document.addEventListener('DOMContentLoaded', () => {
             minzoom: 11,
         });
 
-        const trimetRoutesLayer = 'trimet-routes-layer';
-        const exclRoutes = [287, 288, 291, 292, 293]
+        // TriMet layers
+
+        // Shared filter used for TriMet route labels and stops
         const trimetRoutesFilter = [
             "!", ["any", 
                 // exclude TriMet bus bridge for max outages
@@ -552,17 +553,64 @@ document.addEventListener('DOMContentLoaded', () => {
                 ],
             ]
         ];
+        
+        // Colors and interactive state data
         const tmBusColor = "rgb(134, 105, 153)";
         const otherBusColor = "#3e5c45";
         const railStopColor = "#555555";
-        const routeColor = [
-            "case",
+        const tmRtDisabledColor = '#aaaaaa';
+        const tmHoverState = 'trimet-routes-hovered';
+        const tmRtsState = 'trimet-hovered-routes';
+        map.setGlobalStateProperty(tmHoverState, false);
+        map.setGlobalStateProperty(tmRtsState, []);
+        const baseRouteColor = [
             ["!=", ["get", "route_type"], 3], ["get", "route_color"],
             ["!=", ["get", "agency_id"], "TRIMET"], otherBusColor,
             ["!=", ["get", "route_color"], "#4679AA"], ["get", "route_color"],
             tmBusColor,
         ];
+        const routeColor = [
+            "case",
+            ["all", 
+                ["global-state", tmHoverState], 
+                ["!", ["in", ["get", "route_id"], ["global-state", tmRtsState]]],
+            ],
+            tmRtDisabledColor,
+            ...baseRouteColor,
+        ];
+        const routeLabelColor = [
+            "case",
+            ...baseRouteColor,
+        ];
+        // Offsets are customized to best align rail routes to avoid overlap
+        const routeOffset = [
+            "*",
+            [
+                "case",
+                ["==", ["get", "route_type"], 0],
+                ["match", ["get", "route_id"],
+                    "90", 0,    // red line
+                    "100", 1,   // blue line
+                    "190", -1,  // yellow line
+                    "290", -1,  // orange line
+                    "200", -2,  // green line
+                    "193", 1,   // NS streetcar
+                    "194", 1.5, // A loop streetcar
+                    "195", 0.5, // B loop streetcar
+                    0
+                ],
+                0
+            ],
+            5
+        ];
         
+        const trimetRoutesLayer = 'trimet-routes-layer';
+        const trimetRoutesHoverLayer = 'trimet-routes-layer-hover';
+        const trimetRtLabelLayer = 'trimet-routes-labels-layer';
+        const trimetStopsLayer = 'trimet-stops-layer';
+        const trimetLayers = [trimetRoutesLayer, trimetRoutesHoverLayer, trimetRtLabelLayer, trimetStopsLayer];
+
+        // Transit routes
         addLayerIfSourceOK(map, {
             id: trimetRoutesLayer,
             type: "line",
@@ -572,69 +620,62 @@ document.addEventListener('DOMContentLoaded', () => {
                 "line-color": routeColor,
                 "line-width": [
                     "case",
+                    ["in", ["get", "route_id"], ["global-state", tmRtsState]],
+                    3,
+                    ["global-state", tmHoverState],
+                    1,
                     ["in", ["get", "route_type"], ["literal", [0, 2, 6]]],
                     3,
                     1.5
                 ],
-                "line-offset": [
-                    "*",
-                    [
-                        "case",
-                        ["==", ["get", "route_type"], 0],
-                        ["match", ["get", "route_id"],
-                            "90", 0,    // red line
-                            "100", 1,   // blue line
-                            "190", -1,  // yellow line
-                            "290", -1,  // orange line
-                            "200", -2,  // green line
-                            "193", 1,   // NS streetcar
-                            "194", 1.5, // A loop streetcar
-                            "195", 0.5, // B loop streetcar
-                            0
-                        ],
-                        0
-                    ],
-                    5
-                ],
+                "line-offset": routeOffset,
             },
             layout: {
-                "line-sort-key": ["get", "route_sort_order"],
+                "line-sort-key": [
+                    "case",
+                    ["in", ["get", "route_id"], ["global-state", tmRtsState]],
+                    999999999,
+                    ["coalesce", ["get", "route_sort_order"], 0],
+                ],
                 "line-cap": "butt",
                 "line-join": "miter",
                 visibility: 'none',
             },
             filter: trimetRoutesFilter,
         }, firstSymbolId);
-
-        const trimetRtLabelLayer = 'trimet-routes-labels-layer';
+        
+        // Transit route labels
         addLayerIfSourceOK(map, {
             id: trimetRtLabelLayer,
             type: "symbol",
             source: "trimet-route-tiles",
             "source-layer": "current_routes",
-            filter: trimetRoutesFilter,
+            filter: [
+                "all",
+                trimetRoutesFilter,
+                [
+                    "any",
+                    ["in", ["get", "route_id"], ["global-state", tmRtsState]],
+                    ["!", ["global-state", tmHoverState]],
+                ],
+            ],
             layout: {
                 "text-field": [
                     "coalesce",
                     ["get", "route_short_name"],
                     ["get", "route_long_name"]
                 ],
-                "text-size": 12,
-                "symbol-placement": "line",
-                // "text-keep-upright": true,
-                "text-rotation-alignment": "map",
-                /*
-                "text-font": [
-                    "Open Sans Bold",
-                    "Arial Unicode MS Bold",
-                    "Open Sans Regular",
-                    "Arial Unicode MS Regular"
+                "text-size": [
+                    "case",
+                    ["global-state", tmHoverState],
+                    20, 12
                 ],
-                */
+                "symbol-placement": "line",
+                "text-rotation-alignment": "map",
                 "visibility": "none",
             },
             paint: {
-                "text-halo-color": routeColor,
+                "text-halo-color": routeLabelColor,
                 "text-color": [
                     "case",
                     ["!=", ["get", "agency_id"], "TRIMET"], "#FFFFFF",
@@ -644,7 +685,7 @@ document.addEventListener('DOMContentLoaded', () => {
             },
         });
 
-        const trimetStopsLayer = 'trimet-stops-layer';
+        // Transit stations
         addLayerIfSourceOK(map, {
             id: trimetStopsLayer,
             type: 'circle',
@@ -677,6 +718,27 @@ document.addEventListener('DOMContentLoaded', () => {
             },
         });
 
+        // Invisible layer with extra thickness to make it easier to hover on transit lines
+        addLayerIfSourceOK(map, {
+            id: trimetRoutesHoverLayer,
+            type: "line",
+            source: "trimet-route-tiles",
+            "source-layer": "current_routes",
+            paint: {
+                "line-color": "#FFF",
+                "line-opacity": 0,
+                "line-width": 10,
+                "line-offset": routeOffset,
+            },
+            layout: {
+                "line-cap": "butt",
+                "line-join": "miter",
+                visibility: 'none',
+            },
+            filter: trimetRoutesFilter,
+        });
+
+
         const pdxReporterLayerBaseConfig = {
             type: 'circle', 
             source: 'pdx-reporter-src',
@@ -707,6 +769,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 "circle-stroke-width": 0.1
             },
         });
+
+        // PDX reporter layers
 
         // Invisible layer used to detect hover events with larger target
         const pdxReporterHoverLayer = 'pdx-reporter-hover';
@@ -1020,6 +1084,89 @@ document.addEventListener('DOMContentLoaded', () => {
 
         map.on('click', bikeSignLayer, onRouteSignClicked);
 
+        // Transit route interactivity
+        
+        // When hovering on TriMet route or stop, highlight the route(s) and all matching stops
+        let tmHoveredRoutes = '';
+        const onTrimetRouteHovered = (hoveredRoutes) => {
+            map.setGlobalStateProperty(tmHoverState, true);
+            map.setGlobalStateProperty(tmRtsState, hoveredRoutes);
+            const stopsHoverFilter = hoveredRoutes.reduce((acc, cur) => {
+                acc.push(["in", cur, ["split", ["get", "route_short_names"], ", "]])
+                return acc;
+            }, ["any"]);
+            ['circle-stroke-opacity', 'circle-opacity'].forEach(o => {
+                map.setPaintProperty(trimetStopsLayer, o, [
+                    "case", 
+                    stopsHoverFilter,
+                    1, 0
+                ]);
+            });
+        };
+
+        onHoverOrTap(map, trimetRoutesHoverLayer, (e) => {
+            const features = e.features;
+            map.getCanvas().style.cursor = 'pointer';
+            const hoveredRoutes = features.map(f => {
+                if (f.properties.route_id) {
+                    if (f.properties.route_label?.startsWith('MAX')) {
+                        return [f.properties.route_id, f.properties.route_label.split('Line')[0].trim()];
+                    } else if (f.properties.route_label === 'Portland Aerial Tram') {
+                        return [f.properties.route_id, 'Aerial Tram'];
+                    } else if (f.properties.route_label?.startsWith('WES')) {
+                        return [f.properties.route_id, 'WES'];
+                    } else if (f.properties.route_short_name) {
+                        return [f.properties.route_id, f.properties.route_short_name];
+                    }
+                    return f.properties.route_id;
+                } else if (f.properties.route_short_names) {
+                    return f.properties.route_short_names.split(', ');
+                }
+            }).flat();
+
+            if (tmHoveredRoutes == hoveredRoutes.join(',')) return;
+            tmHoveredRoutes = hoveredRoutes.join(',');
+            mostRecentHoverEvent = e.originalEvent;
+            console.log('hovered trimet routes', hoveredRoutes);
+
+            if (e.type == 'mousemove') {
+                // slight delay when hovering with mouse pointer, to avoid flickering
+                // when quickly moving the mouse across the map with many routes loaded
+                setTimeout(() => {
+                    if (tmHoveredRoutes === hoveredRoutes.join(',')) {
+                        onTrimetRouteHovered(hoveredRoutes);
+                    }
+                }, 100);
+            } else {
+                // if tapped on mobile there's already a delay check, so show immediately
+                onTrimetRouteHovered(hoveredRoutes);
+            }
+        });
+
+        const onTrimetRouteUnhovered = (e) => {
+            if (!tmHoveredRoutes) return;
+            console.log('clearing tm route hover');
+            map.getCanvas().style.cursor = '';
+            map.setGlobalStateProperty(tmHoverState, false);
+            map.setGlobalStateProperty(tmRtsState, []);
+            // map.setFilter(trimetStopsLayer, trimetRoutesFilter);
+            tmHoveredRoutes = '';
+            ['circle-stroke-opacity', 'circle-opacity'].forEach(o => {
+                map.setPaintProperty(trimetStopsLayer, o, 1);
+            });
+            // map.setFilter(trimetRtLabelLayer, trimetRoutesFilter);
+        };
+
+        map.on("mouseleave", trimetRoutesHoverLayer, onTrimetRouteUnhovered);
+        map.on('touchstart', (e) => {
+            if (tmHoveredRoutes && e.originalEvent !== mostRecentHoverEvent && !map.isMoving()) {
+                setTimeout(() => {
+                        if (!map.isMoving()) {
+                            onTrimetRouteUnhovered(e);
+                        }
+                }, 100);
+            }
+        });
 
         ////////////////////////////////////////////
         //////////// Map legends ///////////////////
@@ -1240,7 +1387,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }],
             },
             {
-                id: [trimetRoutesLayer, trimetRtLabelLayer, trimetStopsLayer],
+                id: trimetLayers,
                 visible: false,
                 title: 'Public Transit',
                 showCheckbox: true,
@@ -1520,20 +1667,23 @@ function generateIcon(icon, container) {
     iconItem.appendChild(labelDiv);
 }
 
-function onHoverOrTap(map, layerId, callback) {
+function onHoverOrTap(map, layerIds, callback) {
     // Hover/mousemove doesn't work on mobile devices, so we need to check for both hover (desktop) and touchstart (mobile) events
-    map.on('mousemove', layerId, callback);
-    map.on('touchstart', layerId, (e) => {
-        // don't open popup if more than one touch point, which indicates zooming/panning
-        if (e.points.length > 1) return;
-        // must save and restore features as they get lost after timeout
-        const feats = e.features;
-        // wait a moment before opening the popup, and make sure the user isn't doing a movement
-        setTimeout(() => {
-                if (!map.isMoving()) {
-                    e.features = feats;
-                    callback(e);
-                }
-        }, 100);
+    layerIds = Array.isArray(layerIds) ? layerIds : [layerIds];
+    layerIds.forEach(layerId => {
+        map.on('mousemove', layerId, callback);
+        map.on('touchstart', layerId, (e) => {
+            // don't open popup if more than one touch point, which indicates zooming/panning
+            if (e.points.length > 1) return;
+            // must save and restore features as they get lost after timeout
+            const feats = e.features;
+            // wait a moment before opening the popup, and make sure the user isn't doing a movement
+            setTimeout(() => {
+                    if (!map.isMoving()) {
+                        e.features = feats;
+                        callback(e);
+                    }
+            }, 100);
+        });
     });
 }
